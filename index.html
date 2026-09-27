@@ -1030,6 +1030,32 @@ function drawPlants(container){
       distanceSincePatch-=length;
     }
   }
+  const roundPlantColors=['#829A70','#91A47B','#A0AD83','#78936F'];
+  for(const [a,b] of edges){
+    const samples=getEdgeGeometry(a,b).samples;
+    let distanceSincePatch=mapRandom()*72;
+    for(let i=1;i<samples.length;i++){
+      const start=samples[i-1],end=samples[i],dx=end.x-start.x,dy=end.y-start.y;
+      const length=Math.hypot(dx,dy);
+      while(distanceSincePatch<length){
+        const t=distanceSincePatch/length;
+        const offset=-9+mapRandom()*18,x=start.x+dx*t-(dy/length)*offset,y=start.y+dy*t+(dx/length)*offset;
+        const radius=7+mapRandom()*5,color=roundPlantColors[Math.floor(mapRandom()*roundPlantColors.length)];
+        const group=el('g',{class:'vegetation road-canopy','data-x':x,'data-y':y,'data-clear-radius':'43',
+          opacity:'.76',transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(mapRandom()*30-15).toFixed(1)})`});
+        group.appendChild(el('circle',{cx:0,cy:0,r:radius.toFixed(1),fill:color,'fill-opacity':'.52',
+          stroke:'#637F58','stroke-width':'.9','stroke-opacity':'.48'}));
+        for(const side of [-1,1]){
+          const cx=side*radius*.68,cy=(mapRandom()-.5)*radius*.5,r=radius*(.48+mapRandom()*.12);
+          group.appendChild(el('circle',{cx:cx.toFixed(1),cy:cy.toFixed(1),r:r.toFixed(1),fill:color,
+            'fill-opacity':'.46',stroke:'#637F58','stroke-width':'.75','stroke-opacity':'.4'}));
+        }
+        container.appendChild(group);
+        distanceSincePatch+=78+mapRandom()*66;
+      }
+      distanceSincePatch-=length;
+    }
+  }
   const flowerColors=['#D99B91','#E7BD68','#F1E7C8','#C5CE91','#D7ABC1'];
   for(let attempt=0,planted=0;attempt<12000&&planted<56;attempt++){
     const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,point={x,y};
@@ -1178,10 +1204,6 @@ function drawWorld(){
   drawDistricts(worldLayer);
   drawRiver(worldLayer);
 
-  drawWalkedClearing(worldLayer);
-  const vegetationLayer=el('g',{id:'vegetationLayer',mask:'url(#walkedVegetationMask)'});
-  drawPlants(vegetationLayer);
-  worldLayer.appendChild(vegetationLayer);
   const roads=el('g',{id:'roadNetwork'});
   worldLayer.appendChild(roads);
   edges.forEach(([a,b])=>{
@@ -1191,8 +1213,22 @@ function drawWorld(){
     const width=mainRoad?16:6.5;
     roads.appendChild(el('path',{d,fill:'none',stroke:'#D6C9B1','stroke-width':width+4,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.78'}));
     roads.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#F2E7CC':'#FBF6EA','stroke-width':width,'stroke-linecap':'round','stroke-linejoin':'round'}));
-    roads.appendChild(el('path',{d,fill:'none',stroke:'#FFFFFF','stroke-width':mainRoad?1.1:.75,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.55'}));
   });
+  drawWalkedClearing(worldLayer);
+  const vegetationLayer=el('g',{id:'vegetationLayer',mask:'url(#walkedVegetationMask)'});
+  drawPlants(vegetationLayer);
+  worldLayer.appendChild(vegetationLayer);
+  const roadGuides=el('g',{id:'roadGuides','pointer-events':'none'});
+  edges.forEach(([a,b])=>{
+    const from=nodes[a],to=nodes[b],geometry=getEdgeGeometry(a,b);
+    const d=`M ${from.x} ${from.y} Q ${geometry.control.x} ${geometry.control.y} ${to.x} ${to.y}`;
+    const mainRoad=geometry.roadClass==='main';
+    roadGuides.appendChild(el('path',{d,fill:'none',stroke:'#C8B99C','stroke-width':mainRoad?4:2.8,
+      'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.78'}));
+    roadGuides.appendChild(el('path',{d,fill:'none',stroke:'#FFF9EC','stroke-width':mainRoad?2.5:1.5,
+      'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.96'}));
+  });
+  worldLayer.appendChild(roadGuides);
   drawMajorPlaceLabels(worldLayer);
   drawWalkedTrails(worldLayer);
 }
