@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>道草 michikusa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F7F0E4; --cream-deep:#F1E7D5; --card:#FFFFFF;
+    --ink:#43392D; --ink-soft:#8C8272; --ink-faint:#B5AB98;
+    --orange:#EFA765; --orange-deep:#E27F3E;
+    --moss:#A8B99B; --moss-deep:#819574;
+    --blush:#F0D6D2; --sand:#F3E3BE; --water:#93C6D6; --teal-dot:#2B5049;
+    --shadow: 0 10px 26px rgba(90,68,40,0.14);
+    --shadow-soft: 0 4px 14px rgba(90,68,40,0.08);
+    --map-material:rgba(255,255,255,0.88); --map-control-ink:#315A50;
+    --radius-small:8px; --radius-control:12px; --radius-card:20px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--cream);
+    font-family:'Noto Sans JP',sans-serif; color:var(--ink);}
+  #app{position:relative; width:100%; height:100vh; max-width:480px; margin:0 auto;
+    background:var(--cream); overflow:hidden;}
+
+  /* ---------- map (full background) ---------- */
+  #mapArea{position:absolute; inset:0; z-index:0; overflow:hidden; touch-action:none;}
+  svg#map{width:100%; height:100%; display:block; touch-action:none;}
+  .map-badge{position:absolute; top:calc(env(safe-area-inset-top) + 14px); z-index:5;
+    background:var(--map-material); -webkit-backdrop-filter:blur(18px) saturate(1.25); backdrop-filter:blur(18px) saturate(1.25);
+    border:1px solid rgba(255,255,255,.72); box-shadow:0 3px 12px rgba(45,58,44,.12);
+    border-radius:999px; display:flex; align-items:center; gap:6px; font-weight:600;}
+  .icon-inline{display:inline-flex;vertical-align:-.16em;align-items:center;justify-content:center;line-height:0;margin-right:2px;}
+  .icon-inline svg{display:block;flex:none;}
+  .weather-badge{right:14px; padding:8px 13px; font-size:13px; color:var(--ink-soft);}
+  .zoom-controls{position:absolute; right:14px; top:calc(env(safe-area-inset-top) + 58px); z-index:5;
+    display:flex; flex-direction:column; background:var(--map-material); -webkit-backdrop-filter:blur(18px) saturate(1.25);
+    backdrop-filter:blur(18px) saturate(1.25); border:1px solid rgba(255,255,255,.78); border-radius:var(--radius-control);
+    box-shadow:0 3px 12px rgba(45,58,44,.14); overflow:hidden;}
+  .zoom-btn{width:44px; height:44px; border:none; background:transparent; color:var(--map-control-ink);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .15s ease;}
+  .zoom-btn:active{background:rgba(49,90,80,.1);}
+  .zoom-btn:focus-visible,.help-btn:focus-visible,.star-btn:focus-visible{outline:3px solid #4C91C7;outline-offset:2px;}
+  .zoom-btn:first-child{border-bottom:1px solid rgba(67,57,45,.12);}
+  .zoom-btn svg{display:block;}
+  .locate-btn{position:absolute;right:14px;top:calc(env(safe-area-inset-top) + 158px);z-index:5;
+    width:46px;height:46px;border:1px solid rgba(255,255,255,.78);border-radius:50%;
+    background:var(--map-material);-webkit-backdrop-filter:blur(18px) saturate(1.25);backdrop-filter:blur(18px) saturate(1.25);
+    color:var(--map-control-ink);box-shadow:0 3px 12px rgba(45,58,44,.14);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:background .15s ease,transform .15s ease;}
+  .locate-btn:active{background:#E9F1E8;transform:scale(.96);}
+  .hint-pill{position:absolute; top:calc(env(safe-area-inset-top) + 62px); left:50%; transform:translateX(-50%); z-index:4;
+    background:rgba(67,57,45,0.88); color:#fff; padding:8px 15px; border-radius:999px; font-size:12px;
+    font-weight:500; white-space:nowrap; box-shadow:var(--shadow-soft); animation:floatIn .5s ease; pointer-events:none;}
+  @keyframes floatIn{from{opacity:0; transform:translate(-50%,-6px);} to{opacity:1; transform:translate(-50%,0);}}
+  .pin-label{font-family:'Noto Sans JP',sans-serif; font-size:10.5px; font-weight:700; fill:var(--ink);}
+  .map-place-label{font-family:'Noto Sans JP',sans-serif; font-size:12px; font-weight:600; fill:#43392D; paint-order:stroke; stroke:#F5F0DC; stroke-width:1.5px; stroke-linejoin:round;}
+
+  .route-path{fill:none; stroke:var(--orange-deep); stroke-width:5.5; stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray:5000; stroke-dashoffset:5000; filter:drop-shadow(0 2px 3px rgba(226,127,62,0.35));}
+  .route-path.drawn{animation:drawPath 1.1s cubic-bezier(.4,0,.2,1) forwards;}
+  @keyframes drawPath{to{stroke-dashoffset:0;}}
+  .waypoint{opacity:0; transform-origin:center; animation:pinPop .5s cubic-bezier(.34,1.56,.64,1) forwards;}
+  @keyframes pinPop{0%{opacity:0; transform:scale(.2) translateY(6px);} 100%{opacity:1; transform:scale(1) translateY(0);}}
+
+  /* ---------- draggable sheet ---------- */
+  #sheet{position:absolute; left:0; right:0; bottom:0; z-index:8; background:rgba(250,247,240,.97);
+    -webkit-backdrop-filter:blur(22px) saturate(1.18); backdrop-filter:blur(22px) saturate(1.18);
+    border-top:1px solid rgba(255,255,255,.8); border-radius:var(--radius-card) var(--radius-card) 0 0; box-shadow:0 -5px 18px rgba(45,58,44,.12);
+    overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y;}
+  #sheet.dragging{overflow-y:hidden;}
+  .sheet-inner{padding:10px 20px calc(24px + env(safe-area-inset-bottom)) 20px;}
+  .grabber-zone{padding:10px 0 6px 0; touch-action:none; cursor:grab;}
+  .grabber{width:36px; height:4px; background:var(--ink-faint); opacity:.5; border-radius:99px; margin:0 auto;}
+
+  .search-row{position:relative;display:flex;align-items:center;gap:10px;}
+  .search-box{flex:1; display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.72); border-radius:var(--radius-control);
+    padding:13px 15px; border:1px solid rgba(67,57,45,.1);}
+  .search-box input{border:none; outline:none; background:transparent; font-family:'Noto Sans JP',sans-serif;
+    font-size:13.5px; color:var(--ink); width:100%; touch-action:auto;}
+  .search-box input::placeholder{color:var(--ink-faint);}
+  .search-box .sico{color:var(--ink-faint); font-size:15px;}
+  .search-suggestions{position:absolute;top:calc(100% + 8px);left:0;right:56px;z-index:20;
+    display:none;background:var(--cream);border-radius:var(--radius-control);box-shadow:var(--shadow-soft);overflow:hidden;}
+  .search-suggestions.open{display:block;}
+  .search-suggestion{display:block;width:100%;padding:11px 14px;border:0;border-bottom:1px solid var(--cream-deep);
+    background:transparent;color:var(--ink);font:500 12px 'Noto Sans JP',sans-serif;text-align:left;cursor:pointer;}
+  .search-suggestion:last-child{border-bottom:0;}
+  .search-suggestion:active{background:var(--cream);}
+  .star-btn{flex:none; width:46px; height:46px; border-radius:50%; border:none; cursor:pointer;
+    background:linear-gradient(135deg,var(--orange),var(--orange-deep)); color:#fff; font-size:18px;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(226,127,62,.24); position:relative;}
+  .star-badge{position:absolute; top:-4px; right:-4px; background:var(--ink); color:#fff; font-size:9.5px;
+    font-weight:700; min-width:16px; height:16px; border-radius:99px; display:flex; align-items:center;
+    justify-content:center; padding:0 4px; border:2px solid var(--cream); font-family:'JetBrains Mono',monospace;}
+
+  .row-label{font-size:13px; font-weight:700; color:var(--ink); margin:20px 0 10px 0; display:flex;
+    align-items:baseline; justify-content:space-between; font-family:'Zen Maru Gothic',sans-serif;}
+  .row-label .sub{font-size:11px; font-weight:500; color:var(--ink-faint); font-family:'Noto Sans JP',sans-serif;}
+
+  .slider-wrap{background:rgba(255,255,255,.68); border-radius:var(--radius-card); padding:15px 16px; border:1px solid rgba(67,57,45,.06);}
+  .slider-top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:9px;}
+  .slider-min{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:20px; color:var(--orange-deep);}
+  .slider-desc{font-size:12px; color:var(--ink-soft); font-weight:500;}
+  input[type=range]{width:100%; accent-color:var(--orange-deep); height:20px; touch-action:auto;}
+  .slider-ends{display:flex; justify-content:space-between; font-size:10px; color:var(--ink-faint); margin-top:2px;}
+
+  .mood-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
+  .mood-chip{min-height:44px;padding:10px 4px; border-radius:var(--radius-control); background:transparent; border:1px solid transparent;
+    font-size:12px; font-weight:600; color:var(--ink-soft); text-align:center; cursor:pointer; transition:all .15s ease;}
+  .mood-chip:hover{background:rgba(255,255,255,.36);}
+  .mood-chip.active{background:linear-gradient(135deg,var(--orange),var(--orange-deep)); border-color:transparent; color:#fff;
+    box-shadow:0 3px 8px rgba(226,127,62,.18);}
+  .mood-freeform{width:100%; min-height:74px; margin-top:10px; padding:12px 14px; border:1px solid rgba(67,57,45,.12);
+    border-radius:var(--radius-control); resize:vertical; background:rgba(255,255,255,.5); color:var(--ink); font:13px/1.6 'Noto Sans JP',sans-serif;}
+  .mood-freeform::placeholder{color:var(--ink-faint);}
+  .ai-note{margin-top:10px; font-size:11.5px; color:var(--ink-soft); line-height:1.6; padding:4px 2px;}
+
+  .btn-primary{width:100%; margin-top:22px; padding:16px; border:none; border-radius:var(--radius-card);
+    background:linear-gradient(135deg,var(--orange),var(--orange-deep)); color:#fff; font-size:15.5px;
+    font-weight:700; font-family:'Zen Maru Gothic',sans-serif; letter-spacing:.5px; cursor:pointer;
+    box-shadow:0 4px 12px rgba(226,127,62,0.2); transition:transform .12s ease;}
+  .btn-primary:active{transform:scale(0.98);}
+  .btn-primary:disabled{background:var(--ink-faint); box-shadow:none; cursor:not-allowed;}
+  .btn-secondary{width:100%; margin-top:10px; padding:12px; border:1px solid rgba(67,57,45,.16); border-radius:var(--radius-control);
+    background:transparent; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer;}
+
+  .result-head{display:flex; align-items:center; justify-content:space-between; margin-top:20px;}
+  .result-head .t{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:16px; color:var(--ink);}
+  .result-stat{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft);}
+  .why-card{margin-top:12px; background:rgba(243,227,190,.46); border-left:3px solid var(--orange-deep);
+    border-radius:var(--radius-control); padding:13px 15px;}
+  .why-head{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:13.5px; color:var(--ink); margin-bottom:5px;}
+  .why-body{font-size:12.5px; color:var(--ink); line-height:1.7;}
+  .why-tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px;}
+  .why-tag{background:rgba(255,255,255,0.48); color:var(--orange-deep); font-size:11px; font-weight:700;
+    padding:4px 10px; border-radius:999px;}
+  .spot-card{display:flex; gap:12px; padding:10px 2px; border-bottom:1px solid rgba(67,57,45,.12);
+    margin-top:4px; align-items:center; animation:cardIn .4s ease both;}
+  @keyframes cardIn{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+  .spot-thumb{width:46px; height:46px; border-radius:var(--radius-small); flex:none; overflow:hidden;}
+  .spot-thumb svg{display:block; width:100%; height:100%;}
+  .spot-num-badge{width:22px; height:22px; border-radius:50%; background:var(--ink); color:#fff; flex:none;
+    display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;}
+  .spot-info .name{font-size:13.5px; font-weight:700; color:var(--ink);}
+  .spot-info .note{font-size:11.5px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+
+  .walk-btn{width:100%; margin-top:14px; padding:15px; border:none; border-radius:var(--radius-card);
+    background:var(--ink); color:#fff; font-size:14.5px; font-weight:700; font-family:'Zen Maru Gothic',sans-serif;
+    display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;}
+  .save-route-btn{width:100%; margin-top:9px; padding:13px; border:1px solid var(--moss); border-radius:var(--radius-control);
+    background:transparent; color:var(--moss-deep); font-size:13px; font-weight:700; font-family:'Zen Maru Gothic',sans-serif;
+    line-height:1.5; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;}
+  .save-route-btn .icon-inline{vertical-align:middle; margin:0; transform:translateY(1px);}
+  .save-route-btn:disabled{opacity:.65; cursor:default;}
+  .route-story{margin-top:12px; padding:13px 15px; border-radius:var(--radius-control); background:rgba(135,151,122,.13); color:var(--ink);
+    font-size:12.5px; line-height:1.8;}
+  .vegetation{transition:opacity .75s ease;}
+  .vegetation.cleared{opacity:0;}
+  .walked-clearing{opacity:1;transition:opacity 1.25s ease;}
+  .walked-clearing.revealing{opacity:0;}
+  .walked-clearing.revealing.visible{opacity:1;}
+
+  /* ---------- gallery sheet ---------- */
+  #gallerySheet{position:absolute; inset:0; z-index:40; background:rgba(67,57,45,0.35); backdrop-filter:blur(2px);
+    display:flex; align-items:flex-end; opacity:0; pointer-events:none; transition:opacity .25s ease;}
+  #gallerySheet.open{opacity:1; pointer-events:auto;}
+  .gallery-inner{background:var(--cream); width:100%; max-height:86vh; border-radius:var(--radius-card) var(--radius-card) 0 0;
+    padding:16px 20px calc(20px + env(safe-area-inset-bottom)) 20px; overflow-y:auto; touch-action:pan-y;
+    transform:translateY(100%); transition:transform .3s cubic-bezier(.4,0,.2,1);}
+  #gallerySheet.open .gallery-inner{transform:translateY(0);}
+  .gallery-title{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:17px; color:var(--ink); margin-bottom:2px;}
+  .gallery-sub{font-size:12px; color:var(--ink-soft); margin-bottom:14px;}
+  .gallery-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .gcard{position:relative; border-radius:var(--radius-card); overflow:hidden; background:rgba(255,255,255,.78); box-shadow:0 2px 8px rgba(45,58,44,.07);}
+  .gcard .photo{width:100%; height:100px; display:block;}
+  .gcard.route-card .photo{height:140px;}
+  .gcard .gc-body{padding:9px 10px 10px 10px;}
+  .gcard .gc-name{font-size:12px; font-weight:700; color:var(--ink); line-height:1.3;}
+  .gcard .gc-meta{display:flex; justify-content:flex-end; align-items:center; margin-top:6px;}
+  .gcard .gc-like{font-size:10.5px; color:var(--orange-deep); font-weight:700;}
+  .gcard .rec-time{font-size:10px; color:var(--ink-soft); margin-top:2px;}
+  .rec-del{position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%; border:none;
+    background:rgba(67,57,45,0.55); color:#fff; font-size:11px; cursor:pointer;}
+  .empty-state{grid-column:1/-1; text-align:center; padding:34px 10px; color:var(--ink-soft); font-size:13px; line-height:1.7;}
+  .empty-state .ico{font-size:30px; display:block; margin-bottom:8px;}
+  .close-x{position:absolute; top:14px; right:16px; background:var(--cream-deep); border:none; width:30px; height:30px;
+    border-radius:50%; font-size:14px; color:var(--ink-soft); cursor:pointer;}
+
+  /* ---------- nav overlay ---------- */
+  #navOverlay{position:absolute; inset:0; z-index:50; background:linear-gradient(180deg,#3C3122,#241B10);
+    color:#fff; display:flex; flex-direction:column; opacity:0; pointer-events:none; transition:opacity .3s ease;}
+  #navOverlay.open{opacity:1; pointer-events:auto;}
+  .nav-top{display:flex; justify-content:space-between; align-items:center; padding:calc(env(safe-area-inset-top) + 14px) 18px 0 18px;}
+  .nav-top .nt{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:14px; opacity:.85;}
+  .nav-close{background:rgba(255,255,255,0.12); border:none; color:#fff; width:30px; height:30px; border-radius:50%; font-size:13px; cursor:pointer;}
+  .nav-hint{text-align:center; font-size:11.5px; color:#D8C9AE; padding:6px 30px 0 30px; line-height:1.6;}
+  .nav-progress{height:4px; background:rgba(255,255,255,0.15); border-radius:99px; margin:14px 20px; overflow:hidden;}
+  .nav-progress-fill{height:100%; background:var(--orange); border-radius:99px; transition:width .4s ease;}
+  .compass-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; overflow-y:auto;}
+  .compass{width:104px; height:104px; border-radius:50%; background:rgba(255,255,255,0.06);
+    border:2px solid rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center;}
+  .compass .arrow{font-size:40px; transition:transform .4s cubic-bezier(.4,0,.2,1); display:block;}
+  .compass .arrow svg{display:block;}
+  .nav-instruction{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:18px; text-align:center;}
+  .nav-sub{font-size:12.5px; color:#D8C9AE; text-align:center;}
+  .spot-near{margin:0 20px; background:rgba(255,255,255,0.06); border-radius:var(--radius-card); padding:13px 15px;
+    display:flex; align-items:center; gap:12px; animation:cardIn .4s ease both;}
+  .spot-near .thumb{width:44px; height:44px; border-radius:var(--radius-small); overflow:hidden; flex:none;}
+  .spot-near .info .name{font-size:13px; font-weight:700;}
+  .spot-near .info .note{font-size:10.5px; color:#C9BEDD; margin-top:2px;}
+  .earbud-btn{margin:12px 20px 0 20px; padding:14px; border-radius:var(--radius-card); border:none;
+    background:linear-gradient(135deg,var(--orange),var(--orange-deep)); color:#fff; font-weight:700; font-size:13px;
+    font-family:'Zen Maru Gothic',sans-serif; display:flex; align-items:center; justify-content:center; gap:8px;
+    cursor:pointer; box-shadow:0 3px 10px rgba(226,127,62,0.2);}
+  .earbud-btn.done{background:rgba(255,255,255,0.1); box-shadow:none; color:#C9BEDD;}
+  .earbud-btn .pulse-ico{animation:michiPulseIco 1s infinite ease-in-out;}
+  @keyframes michiPulseIco{0%,100%{opacity:.55; transform:scale(0.9);} 50%{opacity:1; transform:scale(1.15);}}
+  .nav-bottom{padding:16px 20px calc(20px + env(safe-area-inset-bottom)) 20px;}
+  .nav-next{width:100%; padding:15px; border:none; border-radius:var(--radius-card); background:#fff; color:var(--ink);
+    font-weight:700; font-size:14.5px; font-family:'Zen Maru Gothic',sans-serif; cursor:pointer;}
+  .arrival-box{margin:0 20px; text-align:center; padding:20px 10px;}
+  .arrival-box .big{font-size:40px;}
+  .arrival-box .t{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:18px; margin-top:6px;}
+  .arrival-box .s{font-size:12.5px; color:#C9BEDD; margin-top:6px;}
+  .arrival-map{width:100%;max-width:340px;height:auto;display:block;margin:16px auto 8px;border-radius:var(--radius-control);
+    overflow:hidden;box-shadow:0 5px 20px rgba(0,0,0,.24);}
+  .arrival-map .arrival-road{stroke-dasharray:var(--route-length);stroke-dashoffset:var(--route-length);}
+  .arrival-map.revealing .arrival-road{stroke-dashoffset:0;transition:stroke-dashoffset 1.8s ease;}
+  .arrival-leaf{opacity:1;transform-box:fill-box;transform-origin:center;transition:opacity .55s ease,transform .55s ease;}
+  .arrival-map.revealing .arrival-leaf{opacity:0;transform:scale(.15);transition-delay:var(--leaf-delay);}
+  .arrival-note{color:#E3EAD5;font-size:11px;line-height:1.6;margin-top:4px;}
+  .route-result-title{font-family:'Zen Maru Gothic',sans-serif;font-size:12px;font-weight:700;color:#E3EAD5;margin-top:12px;}
+
+  .toast{position:absolute; top:calc(env(safe-area-inset-top) + 12px); left:50%; transform:translateX(-50%);
+    background:rgba(255,255,255,0.97); color:var(--ink); padding:10px 18px; border-radius:99px; font-size:12.5px;
+    font-weight:700; z-index:60; box-shadow:0 8px 20px rgba(0,0,0,0.25); display:flex; align-items:center; gap:6px;
+    opacity:0; pointer-events:none; transition:all .3s ease;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(6px);}
+
+  .help-btn{position:absolute; top:calc(env(safe-area-inset-top) + 10px); left:12px; z-index:5;
+    width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,.72);
+    background:var(--map-material); -webkit-backdrop-filter:blur(18px) saturate(1.25); backdrop-filter:blur(18px) saturate(1.25);
+    box-shadow:0 3px 12px rgba(45,58,44,.12); color:var(--map-control-ink); font-weight:700; font-size:13px; cursor:pointer;
+    display:flex;align-items:center;justify-content:center;}
+
+  /* ---------- tutorial ---------- */
+  #tutorialOverlay{position:absolute; inset:0; z-index:100; background:var(--cream); display:flex; flex-direction:column;
+    opacity:0; pointer-events:none; transition:opacity .3s ease;}
+  #tutorialOverlay.open{opacity:1; pointer-events:auto;}
+  .tut-skip{position:absolute; top:calc(env(safe-area-inset-top) + 16px); right:18px; background:none; border:none;
+    color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; z-index:2; padding:6px;}
+  .tut-viewport{flex:1; display:flex; align-items:center; justify-content:center; padding:60px 30px 10px 30px; touch-action:pan-y; min-height:0;}
+  .tut-slide{display:flex; flex-direction:column; align-items:center; text-align:center; gap:16px; animation:tutIn .35s ease;}
+  @keyframes tutIn{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+  .tut-illust{width:100%; max-width:280px;}
+  .tut-illust svg{width:100%; height:auto; display:block;}
+  .tut-title{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:19px; color:var(--ink); line-height:1.5; max-width:290px;}
+  .tut-body{font-size:13.5px; color:var(--ink-soft); line-height:1.8; max-width:300px;}
+  .tut-dots{display:flex; justify-content:center; gap:7px; padding:6px 0 4px 0;}
+  .tut-dot{width:7px; height:7px; border-radius:50%; background:var(--ink-faint); opacity:.5; cursor:pointer;}
+  .tut-dot.active{background:var(--orange-deep); opacity:1; width:20px; border-radius:99px; transition:all .25s ease;}
+  .tut-next{margin:14px 24px calc(22px + env(safe-area-inset-bottom)) 24px; padding:16px; border:none; border-radius:var(--radius-card);
+    background:linear-gradient(135deg,var(--orange),var(--orange-deep)); color:#fff; font-size:15px; font-weight:700;
+    font-family:'Zen Maru Gothic',sans-serif; cursor:pointer; box-shadow:0 4px 12px rgba(226,127,62,0.2);}
+
+  ::-webkit-scrollbar{width:0px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="mapArea">
+    <svg id="map" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice"><g id="mapContent"><g id="worldLayer"></g><g id="dynamicLayer"></g></g></svg>
+    <button class="help-btn" id="helpBtn" aria-label="使い方"></button>
+    <div class="map-badge weather-badge" id="weatherBadge"><span id="weatherIcon"></span> 16°</div>
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoomIn" aria-label="拡大"></button>
+      <button class="zoom-btn" id="zoomOut" aria-label="縮小"></button>
+    </div>
+    <button class="locate-btn" id="locateBtn" aria-label="出発地点へ戻る" title="出発地点へ戻る"></button>
+    <div class="hint-pill" id="hintPill">地図をタップして目的地を決めよう</div>
+  </div>
+
+  <div id="sheet">
+    <div class="grabber-zone" id="grabberZone"><div class="grabber"></div></div>
+    <div class="sheet-inner">
+
+      <div class="search-row">
+        <div class="search-box">
+          <span class="sico" id="searchIcon"></span>
+          <input id="destInput" type="text" placeholder="目的地を入力 または 地図から選択">
+        </div>
+        <button class="star-btn" id="starBtn" aria-label="自分の道草記録を開く"><span id="flowerIcon"></span><span class="star-badge" id="starBadge" style="display:none;">0</span></button>
+        <div class="search-suggestions" id="searchSuggestions" role="listbox"></div>
+      </div>
+
+      <div class="row-label">時間の余裕</div>
+      <div class="slider-wrap">
+        <div class="slider-top">
+          <span class="slider-min" id="minLabel">15<span style="font-size:11px;">分</span></span>
+          <span class="slider-desc" id="minDesc">ちょっと寄り道</span>
+        </div>
+        <input type="range" id="timeSlider" min="5" max="40" step="5" value="15">
+        <div class="slider-ends"><span>最短で</span><span>たっぷり冒険</span></div>
+      </div>
+
+      <div class="row-label">いまの気分は？<span class="sub">複数選べます</span></div>
+      <div class="mood-grid" id="moodGrid">
+        <div class="mood-chip active" data-v="discovery">新たな発見</div>
+        <div class="mood-chip" data-v="chill">のんびり</div>
+        <div class="mood-chip" data-v="think">考え事する</div>
+        <div class="mood-chip" data-v="nature">自然を感じる</div>
+        <div class="mood-chip" data-v="quiet">静かに過ごす</div>
+        <div class="mood-chip" data-v="photo">写真映え</div>
+        <div class="mood-chip" data-v="season">季節を感じる</div>
+        <div class="mood-chip" data-v="people">人を感じる</div>
+        <div class="mood-chip" data-v="exercise">運動したい</div>
+        <div class="mood-chip" data-v="blank">何も考えない</div>
+        <div class="mood-chip" data-v="ineffable">言葉にできない</div>
+      </div>
+      <textarea class="mood-freeform" id="moodInput" placeholder="気分を自由に書いてください（例：人混みを避けて、水辺をぼんやり歩きたい）"></textarea>
+      <div class="ai-note"><span id="moodIcon"></span> 選んだ気分や文章から道の雰囲気を読み取り、ルートを提案します。「何も考えない」は静かな水辺へ、「言葉にできない」は見慣れない路地へ。入力文はこの試作内でキーワードを判定します。</div>
+
+      <button class="btn-primary" id="genBtn" disabled>まず目的地を決めよう</button>
+      <button class="btn-secondary" id="regenBtn" style="display:none;"><span id="regenIcon"></span> 別の寄り道を見る</button>
+
+      <div id="resultArea"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div id="navOverlay">
+    <div class="nav-top">
+      <div class="nt"><span id="navIcon"></span> 歩行ナビ（シミュレーション）</div>
+      <button class="nav-close" id="navClose" aria-label="閉じる"></button>
+    </div>
+    <div class="nav-hint">道案内をしながら歩き、好きなタイミングでその場をお気に入りスポットとして記録できます。</div>
+    <div class="nav-progress"><div class="nav-progress-fill" id="navProgressFill" style="width:0%"></div></div>
+    <div id="navBody" class="compass-wrap"></div>
+    <div class="nav-bottom"><button class="nav-next" id="navNextBtn">次へ進む →</button></div>
+  </div>
+
+  <div id="gallerySheet">
+    <div class="gallery-inner" style="position:relative;">
+      <button class="close-x" id="closeGallery" aria-label="閉じる"></button>
+      <div class="gallery-title" id="galleryTitle">自分の道草記録</div>
+      <div class="gallery-sub" id="gallerySub">お気に入りの場所と、歩いた道を見返せます。</div>
+      <div class="gallery-grid" id="galleryGrid" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <div id="tutorialOverlay">
+    <button class="tut-skip" id="tutSkip">スキップ</button>
+    <div class="tut-viewport" id="tutViewport">
+      <div id="tutSlide" class="tut-slide"></div>
+    </div>
+    <div class="tut-dots">
+      <span class="tut-dot" data-i="0"></span><span class="tut-dot" data-i="1"></span>
+      <span class="tut-dot" data-i="2"></span><span class="tut-dot" data-i="3"></span>
+    </div>
+    <button class="tut-next" id="tutNextBtn">次へ</button>
+  </div>
+
+</div>
+
+<script>
+/* ---------------- data ---------------- */
+const SPOTS = [
+  {name:"路地裏の壁画通り", icon:"palette", note:"路地沿いに壁画が並ぶ通り。", tagW:["sunny","cloudy","rainy"], tagM:["discovery","photo","ineffable"], palette:["#F4C77A","#F08C6B"], nodeId:61},
+  {name:"小さな公園のベンチ", icon:"tree", note:"木々に囲まれた小さな公園のベンチ。", tagW:["sunny","cloudy"], tagM:["chill","nature","think","blank"], palette:["#A9D0A0","#6FA287"], nodeId:86},
+  {name:"昔ながらの喫茶店", icon:"coffee", note:"落ち着いた雰囲気の喫茶店。", tagW:["rainy","cloudy"], tagM:["chill","quiet","think","blank"], palette:["#C9A27A","#8C6647"], nodeId:31},
+  {name:"川沿いの遊歩道", icon:"waves", note:"川に沿って続く遊歩道。", tagW:["sunny"], tagM:["chill","nature","photo","season","blank"], palette:["#9BCBD9","#4E94A8"], nodeId:92},
+  {name:"古本屋の軒先ワゴン", icon:"book", note:"古本が並ぶ書店前のワゴン。", tagW:["sunny","cloudy","rainy"], tagM:["discovery","quiet","think","ineffable"], palette:["#E8B87A","#C97F4E"], nodeId:44},
+  {name:"階段のある展望スポット", icon:"mountain", note:"階段を上った先にある街の展望場所。", tagW:["sunny","cloudy"], tagM:["photo","discovery","exercise"], palette:["#F2A9A0","#E27A6E"], nodeId:22},
+  {name:"屋根つきアーケード", icon:"arcade", note:"屋根のある商店街のアーケード。", tagW:["rainy"], tagM:["discovery","people","quiet"], palette:["#F0A85E","#D9603F"], nodeId:89},
+  {name:"駐車場の片隅", icon:"landmark", note:"駐車場の端にある日当たりのよい一角。", tagW:["sunny","cloudy","rainy"], tagM:["discovery","chill","quiet","blank"], palette:["#D9C7A8","#A98C63"], nodeId:115},
+  {name:"パン屋裏の路地", icon:"wheat", note:"パン屋の裏口へ続く路地。", tagW:["sunny","cloudy","rainy"], tagM:["discovery","season","ineffable"], palette:["#F3D08A","#E0985C"], nodeId:64},
+  {name:"小さな神社の鳥居", icon:"landmark", note:"街なかにある小さな神社の鳥居。", tagW:["sunny","cloudy","rainy"], tagM:["chill","photo","quiet","season","blank"], palette:["#E9847A","#B4453F"], nodeId:120},
+  {name:"街角の八百屋", icon:"carrot", note:"野菜が並ぶ街角の八百屋。", tagW:["sunny","cloudy"], tagM:["people","discovery"], palette:["#F0B15E","#D97B3F"], nodeId:90},
+  {name:"坂道の先の見晴らし", icon:"mountain", note:"坂道の先にある街の見晴らし場所。", tagW:["sunny"], tagM:["exercise","photo","nature","ineffable"], palette:["#B7D6B6","#7BA36A"], nodeId:36},
+];
+
+const TIME_DESC = {5:"ほぼ最短",10:"ちょっと寄り道",15:"ちょっと寄り道",20:"のんびり探検",25:"のんびり探検",30:"たっぷり冒険",35:"たっぷり冒険",40:"大冒険"};
+const AUTO_WEATHER = "cloudy"; // 現在地から自動検出した想定（プロトタイプ用の固定値）
+
+// 地図の寸法と既存スポットの座標を保つための基準値。道路網自体は不規則な街区から生成する。
+const GRID_COLS = 14, GRID_ROWS = 11, GRID_SPACING = 160, GRID_ORIGIN = 80;
+const HOME_NODE       = 5*GRID_COLS+6;  // 現在地
+let homeNodeId = HOME_NODE;
+const STATION_NODE    = 3*GRID_COLS+8;  // ひかり駅
+const SHOPPING_NODE   = 7*GRID_COLS+4;  // こもれび商店街
+const BOOKSTORE_NODE  = 3*GRID_COLS+3;  // さくら書店
+const PARK_NODE       = 7*GRID_COLS+9;  // ちどり運動公園
+const MUSEUM_NODE     = 2*GRID_COLS+6;  // 美術館
+const UNIVERSITY_NODE = 8*GRID_COLS+7;  // 大学
+const RESTAURANT_NODE = 5*GRID_COLS+9;  // レストラン
+const GINKGO_NODE     = 5*GRID_COLS+2;  // 銀杏並木
+const WORLD_W = GRID_ORIGIN*2 + (GRID_COLS-1)*GRID_SPACING;
+const WORLD_H = GRID_ORIGIN*2 + (GRID_ROWS-1)*GRID_SPACING;
+const SPEED_PX_PER_MIN = 100; // 架空の徒歩速度（ピクセル/分）
+
+// 花芝川：地図を斜めに横切る川（点と点を結ぶ折れ線として定義）
+const RIVER_POINTS = [
+  {x:WORLD_W*0.04, y:WORLD_H*-0.03}, {x:WORLD_W*0.15, y:WORLD_H*0.18},
+  {x:WORLD_W*0.28, y:WORLD_H*0.38},  {x:WORLD_W*0.40, y:WORLD_H*0.55},
+  {x:WORLD_W*0.55, y:WORLD_H*0.70},  {x:WORLD_W*0.72, y:WORLD_H*0.82},
+  {x:WORLD_W*0.92, y:WORLD_H*0.95}
+];
+function distToSegment(p,a,b){
+  const dx=b.x-a.x, dy=b.y-a.y, len2=dx*dx+dy*dy||1;
+  let t=((p.x-a.x)*dx+(p.y-a.y)*dy)/len2; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(p.x-(a.x+t*dx), p.y-(a.y+t*dy));
+}
+function distToRiver(p){
+  let best=Infinity;
+  for(let i=0;i<RIVER_POINTS.length-1;i++) best=Math.min(best, distToSegment(p, RIVER_POINTS[i], RIVER_POINTS[i+1]));
+  return best;
+}
+
+// 街の施設は、道沿いの環境を選ぶための手がかりとして配置する。
+const LANDMARKS = [
+  { key:'station',    name:'ひかり駅',       nodeId:STATION_NODE,    radius:240, attract:['people'],                          avoid:['quiet'] },
+  { key:'shopping',   name:'こもれび商店街', nodeId:SHOPPING_NODE,   radius:230, attract:['discovery','people'],              avoid:['quiet'] },
+  { key:'bookstore',  name:'さくら書店',     nodeId:BOOKSTORE_NODE,  radius:210, attract:['quiet','think'],                   avoid:[] },
+  { key:'park',       name:'ちどり運動公園', nodeId:PARK_NODE,       radius:250, attract:['exercise','nature','photo'],       avoid:[] },
+  { key:'river',      name:'花芝川',         isRiver:true,           radius:180, attract:['nature','season','photo','chill'], avoid:[] },
+  { key:'museum',     name:'こはる美術館',   nodeId:MUSEUM_NODE,     radius:210, attract:['discovery','photo'],               avoid:[] },
+  { key:'university', name:'大学',           nodeId:UNIVERSITY_NODE, radius:220, attract:['think'],                           avoid:[] },
+  { key:'restaurant', name:'レストラン',     nodeId:RESTAURANT_NODE, radius:190, attract:['people'],                          avoid:[] },
+  { key:'ginkgo',     name:'銀杏並木',       nodeId:GINKGO_NODE,     radius:200, attract:['season','photo','chill'],          avoid:[] },
+  { key:'clinic',     name:'ひだまり診療所', radius:210, attract:['quiet','chill'],                       avoid:[] },
+  { key:'post',       name:'こはる郵便局',   radius:185, attract:['discovery'],                            avoid:[] },
+  { key:'school',     name:'あおぞら小学校', radius:230, attract:['people','season'],                      avoid:[] },
+  { key:'library',    name:'こもれび図書館', radius:220, attract:['quiet','think'],                        avoid:[] },
+  { key:'plaza',      name:'つむぎ広場',     radius:200, attract:['people','exercise','nature'],           avoid:[] },
+  { key:'firestation',name:'さくら消防署',   radius:190, attract:['people'],                               avoid:[] },
+  { key:'community',  name:'こもれび公民館', radius:200, attract:['discovery','people','quiet'],           avoid:[] },
+  { key:'blank',      name:'静かな水辺',     isRiver:true,           radius:260, attract:['blank'],                           avoid:['people'] },
+  { key:'ineffable',  name:'思いがけない道', nodeId:GINKGO_NODE,     radius:460,      attract:['ineffable'],                    avoid:[] },
+];
+
+const state = { dest:null, weather:AUTO_WEATHER, moods:["discovery"], textMoods:[], minutes:15,
+  lastRoutePts:null, customMood:"", currentRoute:null, arrivalHandled:false };
+let selectedFacilityKey=null;
+
+/* ---------------- icon system (Lucide-style line icons, no emoji) ---------------- */
+const ICONS = {
+  palette: '<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1.1a1.6 1.6 0 0 1 1.6-1.6h2c3 0 5.5-2.5 5.5-5.5C22 6 17.5 2 12 2z"/>',
+  tree: '<path d="M12 22v-6"/><path d="M8 13a4 4 0 0 1 0-8 5 5 0 0 1 9.8 1.5A4 4 0 0 1 17 15H8a4 4 0 0 1-3-6.6"/><path d="M12 16v-3"/>',
+  coffee: '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a3 3 0 1 1 0 6h-1"/>',
+  waves: '<path d="M2 8c.7.5 1.4 1 2.8 1 2.8 0 2.8-2 5.6-2 2.7 0 2.7 2 5.6 2 2.7 0 2.7-2 5.6-2 1.4 0 2 .5 2.8 1"/><path d="M2 14c.7.5 1.4 1 2.8 1 2.8 0 2.8-2 5.6-2 2.7 0 2.7 2 5.6 2 2.7 0 2.7-2 5.6-2 1.4 0 2 .5 2.8 1"/><path d="M2 20c.7.5 1.4 1 2.8 1 2.8 0 2.8-2 5.6-2 2.7 0 2.7 2 5.6 2 2.7 0 2.7-2 5.6-2 1.4 0 2 .5 2.8 1"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  mountain: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
+  arcade: '<path d="M3 9h18"/><path d="m4 9 1.5-5h13L20 9"/><path d="M5 9v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M9 21v-6h6v6"/>',
+  cat: '<path d="M14 8.5c1.7-1.7 4-2.7 5-2 1 .7-.3 3.3-1 5 .7 1 1 2.2 1 3.5 0 3.6-3.1 6-7 6s-7-2.4-7-6c0-1.3.3-2.5 1-3.5-.7-1.7-2-4.3-1-5 1-.7 3.3.3 5 2 .9-.3 2.1-.3 3 0z"/><path d="M9 14v.5"/><path d="M15 14v.5"/>',
+  wheat: '<path d="M2 22 14 10"/><path d="M6.5 8.5 8 7l1.5 1.5a2.5 2.5 0 0 1 0 3.5L8 13.5 6.5 12a2.5 2.5 0 0 1 0-3.5Z"/><path d="M10.5 4.5 12 3l1.5 1.5a2.5 2.5 0 0 1 0 3.5L12 9.5 10.5 8a2.5 2.5 0 0 1 0-3.5Z"/><path d="M18 2h3v3a3 3 0 0 1-3 3h-3V5a3 3 0 0 1 3-3Z"/>',
+  landmark: '<path d="M10 18v-6"/><path d="M14 18v-6"/><path d="M18 18v-6"/><path d="M3 22h18"/><path d="M6 18v-6"/><path d="M12 2 3 8h18Z"/>',
+  carrot: '<path d="M3 21s8.5-2.8 11-6.2a4 4 0 0 0-5.7-5.7C5 12.5 3 21 3 21Z"/><path d="m14 14 2.5-2.5"/><path d="m17 6 .8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8Z"/>',
+  footprints: '<path d="M4 16v-2.4C4 11.5 3 10.5 3 8c0-2.7 1.5-6 4.5-6C9.4 2 10 3.8 10 5.5c0 3.1-2 5.7-2 8.7V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.4c0-2.1 1-3.1 1-5.6 0-2.7-1.5-6-4.5-6-1.9 0-2.5 1.8-2.5 3.5 0 3.1 2 5.7 2 8.7V20a2 2 0 1 0 4 0Z"/>',
+  compass: '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
+  mappin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.9 4.9 1.4 1.4"/><path d="m17.7 17.7 1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.3 17.7-1.4 1.4"/><path d="m19.1 4.9-1.4 1.4"/>',
+  cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.7-9h.8a4.5 4.5 0 1 1 0 9Z"/>',
+  cloudrain: '<path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/>',
+  flower: '<path d="M12 2.2c-3 3.3-3 6.3 0 8.2 3-1.9 3-4.9 0-8.2Z"/><path d="M12 2.2c-3 3.3-3 6.3 0 8.2 3-1.9 3-4.9 0-8.2Z" transform="rotate(72 12 12)"/><path d="M12 2.2c-3 3.3-3 6.3 0 8.2 3-1.9 3-4.9 0-8.2Z" transform="rotate(144 12 12)"/><path d="M12 2.2c-3 3.3-3 6.3 0 8.2 3-1.9 3-4.9 0-8.2Z" transform="rotate(216 12 12)"/><path d="M12 2.2c-3 3.3-3 6.3 0 8.2 3-1.9 3-4.9 0-8.2Z" transform="rotate(288 12 12)"/><circle cx="12" cy="12" r="2.3"/>',
+  close: '<path d="m18 6-12 12"/><path d="m6 6 12 12"/>',
+  shuffle: '<path d="m18 14 4 4-4 4"/><path d="m18 2 4 4-4 4"/><path d="M2 18h2.5a6 6 0 0 0 5-2.7l5-7.6A6 6 0 0 1 19.5 5H22"/><path d="M2 6h2.5a6 6 0 0 1 5 2.7l5 7.6a6 6 0 0 0 5 2.7H22"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  flag: '<path d="M4 22V4"/><path d="M4 4c5-4 11 4 16 0v12c-5 4-11-4-16 0"/>',
+  alert: '<path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  locate: '<circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M2 12h2"/><path d="M20 12h2"/><circle cx="12" cy="12" r="8"/>',
+  sparkles: '<path d="M9.9 15.5A2 2 0 0 0 8.5 14.1l-6.1-1.6a.5.5 0 0 1 0-1L8.5 9.9A2 2 0 0 0 9.9 8.5l1.6-6.1a.5.5 0 0 1 1 0L14.1 8.5a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1L15.5 14.1a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0Z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>',
+  brain: '<path d="M12 5a3 3 0 1 0-5.5 1.7A4 4 0 0 0 4 10.4a4 4 0 0 0 .5 6.1A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.5 1.7A4 4 0 0 1 20 10.4a4 4 0 0 1-.5 6.1A4 4 0 1 1 12 18Z"/>',
+  cloudq: '<circle cx="12" cy="17" r=".4" fill="currentColor"/><path d="M11.3 14.2a1.5 1.5 0 1 1 2 1.4c-.6.3-1 .6-1 1.1"/><path d="M4.2 15.1A5.5 5.5 0 0 1 9.5 4a5.5 5.5 0 0 1 5.4 4.5"/>',
+  save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  arrowright: '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+  route: '<circle cx="6" cy="19" r="2.5"/><path d="M9 19h8.5a3 3 0 0 0 0-6h-11a3 3 0 0 1 0-6H15"/><circle cx="18" cy="5" r="2.5"/>',
+  forkpath: '<path d="M12 22V13"/><path d="M12 13c0-4-6-4-6-9"/><path d="M12 13c0-4 6-4 6-9"/><circle cx="6" cy="4" r="1.5"/><circle cx="18" cy="4" r="1.5"/><circle cx="12" cy="13" r="1.5"/>',
+  building: '<rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/>',
+  university: '<path d="m2 9 10-6 10 6-10 6z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/><path d="M2 9v6"/>',
+  restaurant: '<path d="M3 2v7a3 3 0 0 0 6 0V2"/><path d="M6 9v13"/><path d="M17 2v18"/><path d="M21 15V2a5 5 0 0 0-5 5v6a2 2 0 0 0 2 2Z"/>',
+  ginkgo: '<path d="M12 2c-3 3-3 6 0 8 3-2 3-5 0-8Z"/><path d="M12 10v12"/><path d="M12 14c-3-2-6-1-7 2 3 2 6 1 7-2Z"/><path d="M12 14c3-2 6-1 7 2-3 2-6 1-7-2Z"/>',
+};
+function iconMarkup(name, size, color){
+  const body = ICONS[name] || ICONS.mappin;
+  return `<svg width="${size||16}" height="${size||16}" viewBox="0 0 24 24" fill="none" stroke="${color||'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+}
+function iconInline(name, size, color){
+  return `<span class="icon-inline">${iconMarkup(name,size,color)}</span>`;
+}
+document.getElementById('flowerIcon').innerHTML=iconMarkup('flower',21);
+document.getElementById('searchIcon').innerHTML=iconMarkup('search',16);
+document.getElementById('helpBtn').innerHTML=iconMarkup('help',16);
+document.getElementById('zoomIn').innerHTML=iconMarkup('plus',16);
+document.getElementById('zoomOut').innerHTML=iconMarkup('minus',16);
+document.getElementById('locateBtn').innerHTML=iconMarkup('locate',19);
+document.getElementById('closeGallery').innerHTML=iconMarkup('close',15);
+document.getElementById('weatherIcon').innerHTML=iconMarkup('cloud',15);
+document.getElementById('moodIcon').innerHTML=iconMarkup('sparkles',15);
+document.getElementById('regenIcon').innerHTML=iconMarkup('shuffle',15);
+document.getElementById('navIcon').innerHTML=iconMarkup('compass',16);
+document.getElementById('navClose').innerHTML=iconMarkup('close',15);
+document.getElementById('navNextBtn').innerHTML=`次へ進む ${iconMarkup('arrowright',15)}`;
+function drawIconAt(container, name, x, y, size, color){
+  const s = size||18;
+  const svg = el('svg',{x:x-s/2, y:y-s/2, width:s, height:s, viewBox:'0 0 24 24', fill:'none',
+    stroke:color||'#fff', 'stroke-width':2, 'stroke-linecap':'round', 'stroke-linejoin':'round'});
+  svg.innerHTML = ICONS[name] || ICONS.mappin;
+  container.appendChild(svg);
+  return svg;
+}
+
+/* ---------------- illustrated "photo" generator ---------------- */
+function photoSVG(spot, w, h){
+  const [c1,c2] = spot.palette;
+  const uid = Math.random().toString(36).slice(2,8);
+  return `<svg class="photo" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="g${uid}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>
+    </linearGradient></defs>
+    <rect width="${w}" height="${h}" fill="url(#g${uid})"/>
+    <circle cx="${w*0.18}" cy="${h*0.22}" r="${h*0.32}" fill="#ffffff" opacity="0.14"/>
+    <circle cx="${w*0.85}" cy="${h*0.85}" r="${h*0.45}" fill="#000000" opacity="0.08"/>
+    <path d="M0 ${h*0.78} Q ${w*0.25} ${h*0.62}, ${w*0.5} ${h*0.75} T ${w} ${h*0.7} V${h} H0 Z" fill="#000000" opacity="0.10"/>
+    <circle cx="${w/2}" cy="${h/2 - 4}" r="${h*0.26}" fill="#ffffff" opacity="0.85"/>
+    <g transform="translate(${w/2-12} ${h/2-16})" fill="none" stroke="#43392D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[spot.icon] || ICONS.mappin}</g>
+  </svg>`;
+}
+
+/* ---------------- fictional, irregular road network ---------------- */
+const svg = document.getElementById('map');
+const mapContent = document.getElementById('mapContent');
+const worldLayer = document.getElementById('worldLayer');
+const dynamicLayer = document.getElementById('dynamicLayer');
+const NS = "http://www.w3.org/2000/svg";
+let mapSeed=271828;
+function mapRandom(){
+  mapSeed=(mapSeed*1664525+1013904223)>>>0;
+  return mapSeed/4294967296;
+}
+function el(tag, attrs){ const e=document.createElementNS(NS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); return e; }
+
+let nodes = [], adj = [], edges = [], edgeGeometry = new Map(), roadSegmentIndex = new Map();
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function buildGraph(){
+  mapSeed=271828;
+  nodes=[];
+  adj=[];
+  edges=[];
+  edgeGeometry=new Map();
+  const seedPoints=[
+    {key:'station',x:WORLD_W*.72,y:WORLD_H*.2},
+    {key:'shopping',x:WORLD_W*.31,y:WORLD_H*.66},
+    {key:'bookstore',x:WORLD_W*.22,y:WORLD_H*.3},
+    {key:'park',x:WORLD_W*.78,y:WORLD_H*.72},
+    {key:'museum',x:WORLD_W*.56,y:WORLD_H*.19},
+    {key:'university',x:WORLD_W*.63,y:WORLD_H*.82},
+    {key:'restaurant',x:WORLD_W*.81,y:WORLD_H*.5},
+    {key:'ginkgo',x:WORLD_W*.18,y:WORLD_H*.52},
+    {key:'clinic',x:WORLD_W*.27,y:WORLD_H*.67},
+    {key:'post',x:WORLD_W*.48,y:WORLD_H*.25},
+    {key:'school',x:WORLD_W*.71,y:WORLD_H*.43},
+    {key:'library',x:WORLD_W*.31,y:WORLD_H*.79},
+    {key:'plaza',x:WORLD_W*.58,y:WORLD_H*.62},
+    {key:'firestation',x:WORLD_W*.22,y:WORLD_H*.24},
+    {key:'community',x:WORLD_W*.78,y:WORLD_H*.80}
+  ];
+  const margin=54,targetCount=142;
+  for(let attempts=0;nodes.length<targetCount&&attempts<24000;attempts++){
+    const clearance=78+mapRandom()*78;
+    const candidate={x:margin+mapRandom()*(WORLD_W-margin*2),y:margin+mapRandom()*(WORLD_H-margin*2),clearance};
+    if(nodes.some(point=>dist(point,candidate)<Math.max(clearance,point.clearance))) continue;
+    candidate.id=nodes.length;
+    nodes.push(candidate);
+    adj.push([]);
+  }
+  const triangulationPoints=nodes.map(point=>({x:point.x,y:point.y}));
+  const superRadius=Math.max(WORLD_W,WORLD_H)*8;
+  const middle={x:WORLD_W/2,y:WORLD_H/2};
+  const superIds=[
+    triangulationPoints.push({x:middle.x-superRadius,y:middle.y-superRadius})-1,
+    triangulationPoints.push({x:middle.x+superRadius,y:middle.y-superRadius})-1,
+    triangulationPoints.push({x:middle.x,y:middle.y+superRadius})-1
+  ];
+  function makeTriangle(a,b,c){
+    const pa=triangulationPoints[a],pb=triangulationPoints[b],pc=triangulationPoints[c];
+    const determinant=2*(pa.x*(pb.y-pc.y)+pb.x*(pc.y-pa.y)+pc.x*(pa.y-pb.y));
+    if(Math.abs(determinant)<.001) return null;
+    const a2=pa.x*pa.x+pa.y*pa.y,b2=pb.x*pb.x+pb.y*pb.y,c2=pc.x*pc.x+pc.y*pc.y;
+    const cx=(a2*(pb.y-pc.y)+b2*(pc.y-pa.y)+c2*(pa.y-pb.y))/determinant;
+    const cy=(a2*(pc.x-pb.x)+b2*(pa.x-pc.x)+c2*(pb.x-pa.x))/determinant;
+    const cross=(pb.x-pa.x)*(pc.y-pa.y)-(pb.y-pa.y)*(pc.x-pa.x);
+    return cross>0?{a,b,c,cx,cy,r2:(cx-pa.x)**2+(cy-pa.y)**2}:
+      {a,c,b,cx,cy,r2:(cx-pa.x)**2+(cy-pa.y)**2};
+  }
+  let triangles=[makeTriangle(...superIds)];
+  for(let pointId=0;pointId<nodes.length;pointId++){
+    const point=triangulationPoints[pointId],boundary=new Map(),bad=[];
+    triangles.forEach((triangle,index)=>{
+      if((point.x-triangle.cx)**2+(point.y-triangle.cy)**2<=triangle.r2+1e-5) bad.push(index);
+    });
+    bad.forEach(index=>{
+      const triangle=triangles[index];
+      [[triangle.a,triangle.b],[triangle.b,triangle.c],[triangle.c,triangle.a]].forEach(([a,b])=>{
+        const key=`${Math.min(a,b)}:${Math.max(a,b)}`,edge=boundary.get(key);
+        if(edge) edge.count++; else boundary.set(key,{a,b,count:1});
+      });
+    });
+    const removed=new Set(bad);
+    triangles=triangles.filter((_,index)=>!removed.has(index));
+    boundary.forEach(edge=>{
+      if(edge.count===1){
+        const triangle=makeTriangle(edge.a,edge.b,pointId);
+        if(triangle) triangles.push(triangle);
+      }
+    });
+  }
+  const candidateEdges=new Map();
+  triangles.forEach(triangle=>{
+    if([triangle.a,triangle.b,triangle.c].some(id=>id>=nodes.length)) return;
+    [[triangle.a,triangle.b],[triangle.b,triangle.c],[triangle.c,triangle.a]].forEach(([a,b])=>{
+      const key=`${Math.min(a,b)}:${Math.max(a,b)}`;
+      if(!candidateEdges.has(key)) candidateEdges.set(key,{a,b,length:dist(nodes[a],nodes[b])});
+    });
+  });
+  const edgeIndex=new Set();
+  function addEdge(a,b,roadClass){
+    const key=`${Math.min(a,b)}:${Math.max(a,b)}`;
+    if(edgeIndex.has(key)) return;
+    edgeIndex.add(key);
+    const start=nodes[a],end=nodes[b];
+    const dx=end.x-start.x,dy=end.y-start.y,length=Math.hypot(dx,dy)||1;
+    const bend=(mapRandom()-.5)*Math.min(roadClass==='main'?72:58,length*.24);
+    const control={x:(start.x+end.x)/2-(dy/length)*bend,y:(start.y+end.y)/2+(dx/length)*bend};
+    let curveLength=0,previous=start;
+    const samples=[];
+    for(let i=0;i<=8;i++){
+      const t=i/8,u=1-t;
+      const point={x:u*u*start.x+2*u*t*control.x+t*t*end.x,y:u*u*start.y+2*u*t*control.y+t*t*end.y};
+      samples.push(point);
+      if(i) curveLength+=dist(previous,point);
+      previous=point;
+    }
+    adj[a].push({to:b,w:curveLength});adj[b].push({to:a,w:curveLength});
+    edges.push([a,b]);
+    edgeGeometry.set(key,{control,length:curveLength,samples,roadClass});
+  }
+  const sets=nodes.map((_,index)=>index);
+  const findRoot=id=>{while(sets[id]!==id){sets[id]=sets[sets[id]];id=sets[id];}return id;};
+  const orderedEdges=[...candidateEdges.values()].sort((a,b)=>a.length-b.length);
+  const spanning=new Set();
+  orderedEdges.forEach(edge=>{
+    const rootA=findRoot(edge.a),rootB=findRoot(edge.b);
+    if(rootA!==rootB){sets[rootA]=rootB;spanning.add(`${Math.min(edge.a,edge.b)}:${Math.max(edge.a,edge.b)}`);}
+  });
+  orderedEdges.forEach(edge=>{
+    const key=`${Math.min(edge.a,edge.b)}:${Math.max(edge.a,edge.b)}`;
+    if(spanning.has(key)||mapRandom()<.52){
+      const roadClass=edge.length>210||mapRandom()<.09?'main':'local';
+      addEdge(edge.a,edge.b,roadClass);
+    }
+  });
+  const legacyPosition=id=>({x:GRID_ORIGIN+(id%GRID_COLS)*GRID_SPACING,y:GRID_ORIGIN+Math.floor(id/GRID_COLS)*GRID_SPACING});
+  const home=legacyPosition(HOME_NODE);
+  homeNodeId=nearestNode(home.x,home.y);
+  SPOTS.forEach(spot=>{spot.nodeId=nearestNode(legacyPosition(spot.nodeId).x,legacyPosition(spot.nodeId).y);});
+  const sitesByKey=new Map(seedPoints.map(site=>[site.key,site]));
+  const occupiedLandmarks=new Set();
+  LANDMARKS.forEach(landmark=>{
+    const site=sitesByKey.get(landmark.key);
+    if(site){
+      const candidates=nodes.map(node=>({id:node.id,distance:dist(node,site)})).sort((a,b)=>a.distance-b.distance);
+      const available=candidates.find(candidate=>!occupiedLandmarks.has(candidate.id))||candidates[0];
+      landmark.nodeId=available.id;
+      occupiedLandmarks.add(available.id);
+    }
+  });
+  roadSegmentIndex=new Map();
+  const cellSize=96;
+  for(const [a,b] of edges){
+    const samples=getEdgeGeometry(a,b).samples;
+    for(let i=1;i<samples.length;i++){
+      const segment={a:samples[i-1],b:samples[i]};
+      const minX=Math.floor(Math.min(segment.a.x,segment.b.x)/cellSize),maxX=Math.floor(Math.max(segment.a.x,segment.b.x)/cellSize);
+      const minY=Math.floor(Math.min(segment.a.y,segment.b.y)/cellSize),maxY=Math.floor(Math.max(segment.a.y,segment.b.y)/cellSize);
+      for(let x=minX;x<=maxX;x++) for(let y=minY;y<=maxY;y++){
+        const key=`${x}:${y}`;
+        if(!roadSegmentIndex.has(key)) roadSegmentIndex.set(key,[]);
+        roadSegmentIndex.get(key).push(segment);
+      }
+    }
+  }
+}
+function getEdgeGeometry(a,b){
+  return edgeGeometry.get(`${Math.min(a,b)}:${Math.max(a,b)}`);
+}
+function sampleRouteGeometry(path){
+  if(path.length===0) return [];
+  const points=[{x:nodes[path[0]].x,y:nodes[path[0]].y}];
+  for(let i=0;i<path.length-1;i++){
+    const from=nodes[path[i]],to=nodes[path[i+1]],geometry=getEdgeGeometry(path[i],path[i+1]);
+    for(let step=1;step<=8;step++){
+      const t=step/8,u=1-t;
+      points.push({
+        x:u*u*from.x+2*u*t*geometry.control.x+t*t*to.x,
+        y:u*u*from.y+2*u*t*geometry.control.y+t*t*to.y
+      });
+    }
+  }
+  return points;
+}
+function routePathData(path){
+  if(path.length===0) return '';
+  let d=`M ${nodes[path[0]].x} ${nodes[path[0]].y}`;
+  for(let i=0;i<path.length-1;i++){
+    const end=nodes[path[i+1]],geometry=getEdgeGeometry(path[i],path[i+1]);
+    d+=` Q ${geometry.control.x} ${geometry.control.y} ${end.x} ${end.y}`;
+  }
+  return d;
+}
+function nearestNode(x,y){
+  let best=0, bestD=Infinity;
+  nodes.forEach(n=>{ const d=dist(n,{x,y}); if(d<bestD){ bestD=d; best=n.id; } });
+  return best;
+}
+
+/* ---------------- Dijkstra pathfinding (mood-weighted, always follows drawn roads) ---------------- */
+function makeWeightFn(moods){
+  return (u,v,w)=>{
+    const mid = getEdgeGeometry(u,v).control;
+    let mult = 1;
+    LANDMARKS.forEach(lm=>{
+      const d = lm.isRiver ? distToRiver(mid) : dist(mid, nodes[lm.nodeId]);
+      if(d > lm.radius) return;
+      if(lm.attract.some(m=>moods.includes(m))) mult *= 0.5;
+      if(lm.avoid.some(m=>moods.includes(m))) mult *= 3.2;
+    });
+    return w*mult;
+  };
+}
+function dijkstra(startId, endId, weightFn, blockedNodes=new Set()){
+  if(blockedNodes.has(startId)||blockedNodes.has(endId)) return {path:[],distance:Infinity};
+  const distArr = new Array(nodes.length).fill(Infinity);
+  const prev = new Array(nodes.length).fill(-1);
+  const visited = new Array(nodes.length).fill(false);
+  distArr[startId] = 0;
+  for(let iter=0; iter<nodes.length; iter++){
+    let u=-1, best=Infinity;
+    for(let i=0;i<nodes.length;i++) if(!visited[i] && distArr[i]<best){ best=distArr[i]; u=i; }
+    if(u===-1) break;
+    visited[u]=true;
+    if(u===endId) break;
+    for(const e of adj[u]){
+      if(blockedNodes.has(e.to)) continue;
+      const w = weightFn(u, e.to, e.w);
+      if(distArr[u]+w < distArr[e.to]){ distArr[e.to]=distArr[u]+w; prev[e.to]=u; }
+    }
+  }
+  const path=[]; let cur=endId;
+  while(cur!==-1){ path.unshift(cur); if(cur===startId) break; cur=prev[cur]; }
+  if(path[0]!==startId) return {path:[],distance:Infinity};
+  return { path, distance: distArr[endId] };
+}
+function routeThrough(nodeIds, weightFn){
+  let fullPath=[nodeIds[0]], totalDist=0;
+  const mandatory=new Set(nodeIds);
+  for(let i=0;i<nodeIds.length-1;i++){
+    const blocked=new Set(fullPath.slice(0,-1));
+    for(const id of mandatory) if(id!==nodeIds[i]&&id!==nodeIds[i+1]) blocked.add(id);
+    const seg = dijkstra(nodeIds[i], nodeIds[i+1], weightFn,blocked);
+    if(seg.path.length===0) return {path:[],distance:Infinity};
+    totalDist += seg.distance;
+    fullPath = fullPath.concat(seg.path.slice(1));
+  }
+  return { path: fullPath, distance: totalDist };
+}
+function spotT(nodeId, destNodeId){
+  const homeN = nodes[homeNodeId], endN = nodes[destNodeId || (state.dest&&state.dest.nodeId)];
+  if(!endN) return 0.5;
+  const ex = endN.x-homeN.x, ey = endN.y-homeN.y, len2 = ex*ex+ey*ey || 1;
+  const sp = nodes[nodeId];
+  return ((sp.x-homeN.x)*ex+(sp.y-homeN.y)*ey)/len2;
+}
+function orderSpotsAlongPath(spots, destNodeId){
+  return [...spots].sort((a,b)=> spotT(a.nodeId,destNodeId) - spotT(b.nodeId,destNodeId));
+}
+
+/* ---------------- drawing ---------------- */
+function toMiniXY(x,y){
+  return { x: Math.max(10, Math.min(390, x/WORLD_W*400)), y: Math.max(10, Math.min(290, y/WORLD_H*300)) };
+}
+function drawPark(container, cx,cy,r){
+  container.appendChild(el('circle',{cx,cy,r, fill:'#A9D28B', opacity:'0.85'}));
+  container.appendChild(el('circle',{cx:cx+r*0.15, cy:cy+r*0.1, r:r*0.35, fill:'#6FC0DE', opacity:'0.8'}));
+  for(let i=0;i<7;i++){
+    const ang=Math.random()*Math.PI*2, rr=Math.random()*r*0.75;
+    container.appendChild(el('circle',{cx:cx+Math.cos(ang)*rr, cy:cy+Math.sin(ang)*rr, r:3.5, fill:'#5F9C55', opacity:'0.5'}));
+  }
+}
+function drawStation(container, cx, cy){
+  container.appendChild(el('rect',{x:cx-32,y:cy-74,width:64,height:38, rx:5, fill:'#D8D2C4', stroke:'#fff','stroke-width':2.5}));
+  container.appendChild(el('rect',{x:cx-17,y:cy-62,width:34,height:16, rx:2, fill:'#C9C2B0'}));
+}
+function drawShopping(container, cx, cy){
+  container.appendChild(el('rect',{x:cx-58,y:cy-26,width:116,height:44,rx:8,fill:'#F6D9A8',opacity:'0.55'}));
+  for(let i=0;i<5;i++){
+    container.appendChild(el('rect',{x:cx-50+i*22,y:cy-18,width:18,height:30,rx:3,fill:'#F0A85E',stroke:'#fff','stroke-width':1.5}));
+  }
+}
+function drawBookstore(container, cx, cy){
+  container.appendChild(el('rect',{x:cx-18,y:cy-40,width:36,height:36,rx:5,fill:'#E8B87A',stroke:'#fff','stroke-width':2.5}));
+  drawIconAt(container,'book',cx,cy-22,19,'#fff');
+}
+function drawMuseum(container, cx, cy){ // 三角屋根＋列柱のある美術館（すべて自作の図形、絵文字は使わない）
+  container.appendChild(el('polygon',{points:`${cx-36},${cy-24} ${cx},${cy-48} ${cx+36},${cy-24}`, fill:'#D8CBB0', stroke:'#fff','stroke-width':2.5}));
+  container.appendChild(el('rect',{x:cx-34,y:cy-24,width:68,height:30,rx:2,fill:'#EFE6D2',stroke:'#fff','stroke-width':2.5}));
+  for(let i=0;i<5;i++){ container.appendChild(el('rect',{x:cx-28+i*13.5,y:cy-20,width:5,height:24,fill:'#C9BC9E'})); }
+}
+function drawUniversity(container, cx, cy){ // 時計塔つきの校舎
+  container.appendChild(el('rect',{x:cx-42,y:cy-16,width:84,height:32,rx:3,fill:'#CBBBA0',stroke:'#fff','stroke-width':2.5}));
+  container.appendChild(el('rect',{x:cx-9,y:cy-48,width:18,height:36,rx:2,fill:'#B7A688',stroke:'#fff','stroke-width':2.5}));
+  container.appendChild(el('circle',{cx,cy:cy-42,r:6.5,fill:'#8C6647'}));
+  container.appendChild(el('line',{x1:cx,y1:cy-42,x2:cx,y2:cy-46,stroke:'#EFE6D2','stroke-width':1.4}));
+}
+function drawRestaurant(container, cx, cy){ // オーニング(日よけ)のある小さなお店
+  container.appendChild(el('rect',{x:cx-26,y:cy-8,width:52,height:26,rx:3,fill:'#F2E4CC',stroke:'#fff','stroke-width':2.5}));
+  for(let i=0;i<7;i++){ container.appendChild(el('rect',{x:cx-26+i*7.4,y:cy-22,width:7.4,height:16,fill:i%2===0?'#D9603F':'#FBF6EA'})); }
+}
+function drawGinkgo(container, cx, cy){ // 黄金色の銀杏並木
+  for(let i=-2;i<=2;i++){
+    container.appendChild(el('rect',{x:cx+i*24-2, y:cy+8, width:4, height:16, fill:'#8C6647'}));
+    container.appendChild(el('circle',{cx:cx+i*24, cy:cy, r:15, fill:'#E8B84A', opacity:'0.88'}));
+    container.appendChild(el('circle',{cx:cx+i*24-4, cy:cy-4, r:6, fill:'#F3D374', opacity:'0.7'}));
+  }
+}
+function drawRiver(container){
+  const first=RIVER_POINTS[0],last=RIVER_POINTS[RIVER_POINTS.length-1];
+  let d=`M ${first.x} ${first.y}`;
+  for(let i=1;i<RIVER_POINTS.length-1;i++){
+    const point=RIVER_POINTS[i],next=RIVER_POINTS[i+1];
+    d+=` Q ${point.x} ${point.y} ${(point.x+next.x)/2} ${(point.y+next.y)/2}`;
+  }
+  d+=` Q ${last.x} ${last.y} ${last.x} ${last.y}`;
+  container.appendChild(el('path',{d,fill:'none',stroke:'#365E49','stroke-width':42,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.72'}));
+  container.appendChild(el('path',{d,fill:'none',stroke:'#72B7AD','stroke-width':29,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.9'}));
+  container.appendChild(el('path',{d,fill:'none',stroke:'#A2D7C8','stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.8'}));
+}
+function distanceToRoad(point){
+  let nearest=Infinity;
+  const size=96,radius=46,minX=Math.floor((point.x-radius)/size),maxX=Math.floor((point.x+radius)/size);
+  const minY=Math.floor((point.y-radius)/size),maxY=Math.floor((point.y+radius)/size),checked=new Set();
+  for(let x=minX;x<=maxX;x++) for(let y=minY;y<=maxY;y++){
+    const segments=roadSegmentIndex.get(`${x}:${y}`)||[];
+    for(const segment of segments){
+      if(checked.has(segment)) continue;
+      checked.add(segment);
+      nearest=Math.min(nearest,distToSegment(point,segment.a,segment.b));
+    }
+  }
+  return nearest;
+}
+function distanceToWalkedRoute(point){
+  let nearest=Infinity;
+  for(const route of walkedRoutes){
+    const points=route.points||[];
+    for(let i=1;i<points.length;i++){
+      nearest=Math.min(nearest,distToSegment(point,points[i-1],points[i]));
+      if(nearest<26) return nearest;
+    }
+  }
+  return nearest;
+}
+function drawDistricts(container){
+  const greens=['#91AB7E','#A4B58A','#719477','#84A27B','#A0AD81','#789878'];
+  for(let i=0;i<82;i++){
+    const cx=mapRandom()*WORLD_W,cy=mapRandom()*WORLD_H,rx=75+mapRandom()*150,ry=48+mapRandom()*118;
+    const points=Array.from({length:9},(_,index)=>{
+      const angle=index*Math.PI*2/9;
+      const scale=.72+mapRandom()*.55;
+      return {x:cx+Math.cos(angle)*rx*scale,y:cy+Math.sin(angle)*ry*scale};
+    });
+    let d='';
+    points.forEach((point,index)=>{
+      const next=points[(index+1)%points.length];
+      const mid={x:(point.x+next.x)/2,y:(point.y+next.y)/2};
+      d+=`${index?'':'M'} ${mid.x.toFixed(1)} ${mid.y.toFixed(1)} Q ${point.x.toFixed(1)} ${point.y.toFixed(1)} `;
+    });
+    d+='Z';
+    container.appendChild(el('path',{d,fill:greens[i%greens.length],opacity:(.15+mapRandom()*.18).toFixed(2)}));
+  }
+}
+function makePlant(container,x,y,kind,scale,rotation){
+  const treeKinds=['roundtree','conifer'];
+  const g=el('g',{class:`vegetation ${kind}-patch${treeKinds.includes(kind)?' tree-patch':''}`,'data-x':x,'data-y':y,opacity:(.84+mapRandom()*.16).toFixed(2),
+    transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rotation.toFixed(1)}) scale(${scale.toFixed(2)})`});
+  const leaf=['#4D7954','#588258','#64895A','#70915C','#789663'][Math.floor(mapRandom()*5)];
+  const light=['#AFC48A','#B8C88B','#C2CC98','#A5BC83'][Math.floor(mapRandom()*4)];
+  if(kind==='roundtree'){
+    g.appendChild(el('path',{d:'M-30 9 C-38 2-33-11-23-13 C-23-26-9-32 1-24 C10-34 26-27 26-15 C39-9 38 5 27 11 C23 23 7 25 0 17 C-10 27-27 22-27 13Z',fill:'#496F4D',opacity:'.7'}));
+    g.appendChild(el('path',{d:'M-24 3 C-31-5-23-17-13-17 C-9-28 6-27 10-17 C21-23 31-13 26-4 C36 4 27 16 17 13 C10 23-3 20-7 13 C-18 18-27 11-24 3Z',fill:leaf}));
+    g.appendChild(el('path',{d:'M-16-9 C-14-18-4-20 2-14 C8-22 20-17 19-9 C28-5 24 5 16 7 C10 16-2 13-5 7 C-13 11-21 2-16-4Z',fill:light,opacity:'.72'}));
+    [[-20,-7,2.5],[10,-14,2],[18,3,1.8],[-4,7,1.7]].forEach(([cx,cy,r],index)=>{
+      g.appendChild(el('circle',{cx,cy,r,fill:index%2?'#B5C48E':'#5E8057',opacity:'.48'}));
+    });
+  }else if(kind==='conifer'){
+    g.appendChild(el('path',{d:'M1-37 C-5-30-9-24-13-18 C-9-19-5-18-1-15 C-8-10-15-3-20 4 C-14 2-9 4-5 7 C-13 13-20 18-25 24 C-15 22-7 25 0 29 C7 26 15 22 24 24 C18 17 12 11 6 7 C11 4 16 4 21 6 C15-2 8-9 2-15 C7-18 12-18 16-17 C10-24 6-31 1-37Z',fill:'#527B56'}));
+    g.appendChild(el('path',{d:'M1-33 C-3-27-7-22-10-17 C-5-17-1-14 1-10 C4-14 8-16 12-16 C8-22 4-27 1-33Z',fill:light,opacity:'.76'}));
+    g.appendChild(el('path',{d:'M0-20 C-6-13-12-6-17 2 C-10 1-5 4 0 9 C5 5 11 2 17 4 C12-5 5-13 0-20Z',fill:leaf,opacity:'.9'}));
+    g.appendChild(el('path',{d:'M-1-7 C-8 2-15 12-21 20 C-12 19-6 22 0 27 C7 23 14 20 22 22 C16 13 7 3-1-7Z',fill:light,opacity:'.78'}));
+  }else if(kind==='palm'){
+    for(let frond=0;frond<6;frond++){
+      const angle=(-155+frond*58)*Math.PI/180,length=23+mapRandom()*9;
+      const tx=Math.cos(angle)*length,ty=Math.sin(angle)*length,side=frond%2?1:-1;
+      const px=-Math.sin(angle)*side*4,py=Math.cos(angle)*side*4;
+      g.appendChild(el('path',{d:`M0 1 Q${(tx*.35+px).toFixed(1)} ${(ty*.38+py).toFixed(1)} ${(tx*.72+px).toFixed(1)} ${(ty*.72+py).toFixed(1)} Q${(tx+px*.3).toFixed(1)} ${(ty+py*.3).toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)} Q${(tx*.46-px).toFixed(1)} ${(ty*.52-py).toFixed(1)} 0 1Z`,fill:frond%2?leaf:light,opacity:'.9'}));
+    }
+  }else if(kind==='fern'){
+    for(let frond=0;frond<5;frond++){
+      const angle=(-154+frond*40)*Math.PI/180,length=23+mapRandom()*7;
+      const tx=Math.cos(angle)*length,ty=Math.sin(angle)*length,side=frond%2?1:-1;
+      const points=[.28,.5,.7,.88];
+      points.forEach((t,index)=>{
+        const cx=tx*t,cy=8+(ty-8)*t,lobe=4.7-index*.35;
+        const lx=cx-Math.sin(angle)*lobe*side,ly=cy+Math.cos(angle)*lobe*side;
+        g.appendChild(el('ellipse',{cx:lx,cy:ly,rx:lobe*.82,ry:lobe*.52,fill:index%2?light:leaf,opacity:'.88',
+          transform:`rotate(${angle*180/Math.PI+side*32} ${lx} ${ly})`}));
+      });
+    }
+  }else if(kind==='monstera'){
+    g.appendChild(el('path',{d:'M-2 19 C-6 8-2-4-1-16 C-17-30-26-18-20-9 C-29 2-18 17-6 9 C2 24 17 19 15 7 C29-1 22-20 8-19 C3-25-3-23-2-16Z',fill:leaf}));
+    g.appendChild(el('path',{d:'M-4 11 C-7 3-5-6-4-14 C-13-21-20-15-15-8 C-21 0-15 8-8 4 C-2 15 8 12 8 4 C17-1 12-14 5-13 C1-18-3-17-4-14Z',fill:light,opacity:'.62'}));
+  }else if(kind==='shrub'){
+    g.appendChild(el('path',{d:'M-22 8 C-29 0-23-10-14-10 C-10-20 3-19 7-11 C17-18 27-9 22 0 C29 9 18 17 9 12 C1 21-12 18-14 12 C-19 14-23 12-22 8Z',fill:leaf}));
+    g.appendChild(el('path',{d:'M-15 1 C-12-7-3-11 3-6 C9-13 19-8 17-2 C14 6 5 8 0 4 C-6 9-14 7-15 1Z',fill:light,opacity:'.55'}));
+  }else if(kind==='vine'){
+    g.appendChild(el('path',{d:'M-34 15 C-25 11-28 1-18-3 C-8-8-4 2 4-4 C12-10 8-20 18-25 C25-29 30-22 27-16 C25-10 31-9 36-12',fill:'none',stroke:leaf,'stroke-width':3.2,'stroke-linecap':'round','opacity':'.62'}));
+    const leaves=[[-23,2,-48],[-12,-1,-35],[-2,5,48],[8,-15,-42],[18,-8,38],[23,-23,-48],[31,-15,42]];
+    for(const [lx,ly,angle] of leaves){
+      const shade=mapRandom()<.5?leaf:light;
+      const leafGroup=el('g',{transform:`translate(${lx} ${ly}) rotate(${angle})`});
+      leafGroup.appendChild(el('ellipse',{cx:0,cy:-6,rx:3.8,ry:7,fill:shade,opacity:'.88'}));
+      g.appendChild(leafGroup);
+    }
+  }else if(kind==='groundcover'){
+    g.appendChild(el('path',{d:'M-18 7 C-23 0-16-9-8-8 C-4-17 7-15 9-8 C18-12 25-4 20 3 C17 11 8 12 3 8 C-4 15-14 13-18 7Z',fill:leaf,opacity:'.92'}));
+    g.appendChild(el('path',{d:'M-12 1 C-8-6-1-7 3-2 C9-8 16-2 12 4 C8 9 0 8-3 5 C-7 9-13 7-12 1Z',fill:light,opacity:'.55'}));
+  }else if(kind==='tuft'){
+    const blades=[[-9,7,-13],[-3,8,-6],[4,7,9],[9,7,16]];
+    for(let i=0;i<blades.length;i++){
+      const [bx,by,lean]=blades[i],height=14+(i*5%7),shade=i%3===0?light:leaf;
+      const tipX=bx+lean,tipY=by-height;
+      g.appendChild(el('path',{d:`M${bx-3.1} ${by} Q${(bx+lean*.12-3.8).toFixed(1)} ${(by-height*.58).toFixed(1)} ${(tipX-1.8).toFixed(1)} ${(tipY+2).toFixed(1)} Q${tipX.toFixed(1)} ${(tipY-1.8).toFixed(1)} ${(tipX+1.8).toFixed(1)} ${(tipY+2).toFixed(1)} Q${(bx+lean*.25+3.8).toFixed(1)} ${(by-height*.48).toFixed(1)} ${bx+3.1} ${by}Z`,fill:shade}));
+    }
+  }
+  container.appendChild(g);
+  return g;
+}
+function drawPlants(container){
+  const treeKinds=['roundtree','roundtree','roundtree','conifer'];
+  const groundKinds=['groundcover','groundcover','groundcover','tuft','vine','fern','shrub','monstera'];
+  const occupied=[];
+  function hasSpace(point,radius,gap=8){
+    return occupied.every(item=>dist(item,point)>=radius+item.radius+gap);
+  }
+  for(let i=0,planted=0;i<50000&&planted<520;i++){
+    const kind=treeKinds[Math.floor(mapRandom()*treeKinds.length)];
+    const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,scale=.7+mapRandom()*.38,rotation=mapRandom()*360;
+    const radius=44*scale;
+    const point={x,y};
+    if(distanceToRoad(point)<19||distToRiver(point)<48||!hasSpace(point,radius,-11)) continue;
+    makePlant(container,x,y,kind,scale,rotation);
+    occupied.push({x,y,radius});
+    planted++;
+  }
+  for(let i=0,planted=0;i<90000&&planted<3200;i++){
+    const kind=groundKinds[Math.floor(mapRandom()*groundKinds.length)];
+    const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,scale=kind==='groundcover'?1.05+mapRandom()*.42:kind==='tuft'?.8+mapRandom()*.34:.68+mapRandom()*.42,rotation=mapRandom()*360;
+    const point={x,y};
+    const radius=(kind==='groundcover'?17:kind==='tuft'?18:25)*scale;
+    if(distanceToRoad(point)<7||distToRiver(point)<30||!hasSpace(point,radius,-13)) continue;
+    makePlant(container,x,y,kind,scale,rotation);
+    occupied.push({x,y,radius});
+    planted++;
+  }
+  const flowerColors=['#F0D88D','#E7B8B9','#F5EBD1','#CFD993'];
+  const flowerPoints=[];
+  for(let i=0,planted=0;i<18000&&planted<300;i++){
+    const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,scale=1+mapRandom()*.55,point={x,y};
+    const radius=14*scale;
+    if(distanceToRoad(point)<18||distToRiver(point)<34||flowerPoints.some(other=>dist(other,point)<78)) continue;
+    const g=el('g',{class:'vegetation flower-patch','data-x':x,'data-y':y,opacity:'.94',transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(2)})`});
+    for(let petal=0;petal<5;petal++){
+      const angle=petal*Math.PI*2/5;
+      const cx=Math.cos(angle)*4.4,cy=Math.sin(angle)*4.4;
+      g.appendChild(el('ellipse',{cx:cx.toFixed(1),cy:cy.toFixed(1),rx:3.8,ry:2.6,
+        fill:flowerColors[Math.floor(mapRandom()*flowerColors.length)],transform:`rotate(${petal*72} ${cx.toFixed(1)} ${cy.toFixed(1)})`}));
+    }
+    g.appendChild(el('circle',{cx:0,cy:0,r:2.3,fill:'#E6B84F'}));
+    container.appendChild(g);flowerPoints.push(point);planted++;
+  }
+  let roadsideCount=0;
+  for(const [a,b] of edges){
+    const geometry=getEdgeGeometry(a,b),start=nodes[a],end=nodes[b];
+    const count=Math.max(1,Math.floor(geometry.length/24));
+    for(let i=0;i<count&&roadsideCount<1500;i++){
+      const t=(i+.5)/count,u=1-t;
+      const x=u*u*start.x+2*u*t*geometry.control.x+t*t*end.x;
+      const y=u*u*start.y+2*u*t*geometry.control.y+t*t*end.y;
+      const dx=end.x-start.x,dy=end.y-start.y,len=Math.hypot(dx,dy)||1;
+      const offset=(mapRandom()-.5)*13;
+      const point={x:x-(dy/len)*offset,y:y+(dx/len)*offset};
+      const scale=.78+mapRandom()*.15,radius=18*scale;
+      if(distanceToWalkedRoute(point)<radius+5) continue;
+      const growth=makePlant(container,point.x,point.y,mapRandom()<.92?'tuft':'groundcover',scale,mapRandom()*360);
+      growth.classList.add('roadside-growth');
+      occupied.push({x:point.x,y:point.y,radius});
+      roadsideCount++;
+    }
+  }
+}
+function drawWalkedClearing(container){
+  const existing=container.querySelector('#walkedClearings');
+  if(existing) existing.remove();
+  const layer=el('g',{id:'walkedClearings'});
+  const roadLayer=container.querySelector('#roadNetwork');
+  const mask=container.querySelector('#walkedVegetationMask');
+  if(mask) mask.querySelectorAll('.walked-mask-path').forEach(path=>path.remove());
+  let delayedRouteId=null;
+  walkedRoutes.forEach(route=>{
+    const points=route.points||[];
+    if(points.length<2) return;
+    const d=points.map((point,index)=>`${index?'L':'M'} ${point.x} ${point.y}`).join(' ');
+    const animate=route.id===state.currentRoute?.id&&state.arrivalHandled;
+    if(animate) delayedRouteId=route.id;
+    const group=el('g',{class:`walked-clearing${animate?' revealing':''}`});
+    group.appendChild(el('path',{d,fill:'none',stroke:'#68744F','stroke-width':54,'stroke-linecap':'round','stroke-linejoin':'round',
+      filter:'url(#walkedClearingBlur)',opacity:'.5'}));
+    group.appendChild(el('path',{d,fill:'none',stroke:'#E9E2D0','stroke-width':40,'stroke-linecap':'round','stroke-linejoin':'round',
+      filter:'url(#walkedClearingSoftEdge)',opacity:'.66'}));
+    group.appendChild(el('path',{d,fill:'none',stroke:'#F4EBD6','stroke-width':28,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.88'}));
+    layer.appendChild(group);
+    if(animate) setTimeout(()=>group.classList.add('visible'),250);
+    if(mask&&!animate){
+      mask.appendChild(el('path',{d,class:'walked-mask-path',fill:'none',stroke:'#000','stroke-width':36,
+        'stroke-linecap':'round','stroke-linejoin':'round',filter:'url(#walkedMaskBlur)'}));
+    }
+  });
+  if(roadLayer) container.insertBefore(layer,roadLayer);
+  else container.appendChild(layer);
+  if(delayedRouteId){
+    setTimeout(()=>{
+      const route=walkedRoutes.find(item=>item.id===delayedRouteId);
+      if(!route||!mask) return;
+      const points=route.points||[];
+      if(points.length<2) return;
+      const d=points.map((point,index)=>`${index?'L':'M'} ${point.x} ${point.y}`).join(' ');
+      mask.appendChild(el('path',{d,class:'walked-mask-path',fill:'none',stroke:'#000','stroke-width':36,
+        'stroke-linecap':'round','stroke-linejoin':'round',filter:'url(#walkedMaskBlur)'}));
+    },1450);
+  }
+}
+function drawWalkedTrails(container){
+  const existing=container.querySelector('#walkedTrails');
+  if(existing) existing.remove();
+  const layer=el('g',{id:'walkedTrails'});
+  walkedRoutes.forEach(route=>{
+    const points=route.points||[];
+    if(points.length<2) return;
+    const d=points.map((point,index)=>`${index?'L':'M'} ${point.x} ${point.y}`).join(' ');
+    layer.appendChild(el('path',{d,class:'walked-trail',fill:'none',stroke:'#8A8A70','stroke-width':7,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.72'}));
+    layer.appendChild(el('path',{d,class:'walked-trail',fill:'none',stroke:'#D8CEB5','stroke-width':4.5,'stroke-linecap':'round','stroke-linejoin':'round'}));
+  });
+  container.appendChild(layer);
+}
+function drawMajorPlaceLabels(container){
+  container.querySelector('#facilityMarkers')?.remove();
+  const iconByKey={station:'landmark',shopping:'building',bookstore:'book',park:'tree',museum:'palette',
+    university:'university',clinic:'plus',post:'save',school:'landmark',library:'book',plaza:'flower',
+    firestation:'alert',community:'building'};
+  const colorByKey={station:'#648B78',shopping:'#CA8952',bookstore:'#A47B58',park:'#78A26A',museum:'#967FA7',
+    university:'#6D83A6',clinic:'#C77D72',post:'#C59B53',school:'#7796B4',library:'#719481',
+    plaza:'#D59A62',firestation:'#C96F5D',community:'#8A9A69'};
+  const layer=el('g',{id:'facilityMarkers'});
+  LANDMARKS.filter(place=>iconByKey[place.key]&&!place.isRiver).forEach(place=>{
+    const point=nodes[place.nodeId];
+    const group=el('g',{class:'facility-marker',role:'button','aria-label':place.name,'data-landmark-key':place.key,
+      tabindex:'0',style:'cursor:pointer'});
+    group.appendChild(el('circle',{cx:point.x,cy:point.y,r:14,fill:'#FFF9EC',stroke:'#fff','stroke-width':2,
+      filter:'drop-shadow(0 2px 4px rgba(50,65,43,.35))'}));
+    drawIconAt(group,iconByKey[place.key],point.x,point.y,15,colorByKey[place.key]);
+    if(selectedFacilityKey===place.key){
+      const width=Math.max(64,place.name.length*13+18),x=Math.max(8,Math.min(WORLD_W-width-8,point.x-width/2));
+      const y=Math.max(8,point.y-43);
+      group.appendChild(el('rect',{x,y,width,height:24,rx:10,fill:'#FFF9EC',stroke:'#D9CEB5','stroke-width':1,
+        filter:'drop-shadow(0 2px 3px rgba(50,65,43,.18))','pointer-events':'none'}));
+      const text=el('text',{x:x+width/2,y:y+16,'text-anchor':'middle','font-size':11,'font-weight':700,fill:'#43392D',
+        'font-family':'Noto Sans JP,sans-serif','pointer-events':'none'});
+      text.textContent=place.name;
+      group.appendChild(text);
+    }
+    const stopMapGesture=event=>event.stopPropagation();
+    group.addEventListener('pointerdown',stopMapGesture);
+    group.addEventListener('pointerup',stopMapGesture);
+    group.addEventListener('pointercancel',stopMapGesture);
+    group.addEventListener('click',event=>{
+      event.preventDefault();
+      event.stopPropagation();
+      selectedFacilityKey=selectedFacilityKey===place.key?null:place.key;
+      drawMajorPlaceLabels(container);
+    });
+    group.addEventListener('keydown',event=>{
+      if(event.key==='Enter'||event.key===' '){
+        event.preventDefault();
+        selectedFacilityKey=selectedFacilityKey===place.key?null:place.key;
+        drawMajorPlaceLabels(container);
+      }
+    });
+    layer.appendChild(group);
+  });
+  container.appendChild(layer);
+}
+function drawWorld(){
+  mapSeed=271828;
+  worldLayer.innerHTML = "";
+  worldLayer.appendChild(el('rect',{x:-60,y:-60,width:WORLD_W+120,height:WORLD_H+120,fill:'#789674'}));
+  const defs=el('defs',{});
+  const clearingFilter=el('filter',{id:'walkedClearingBlur',x:'-70%',y:'-220%',width:'240%',height:'540%'});
+  clearingFilter.appendChild(el('feGaussianBlur',{stdDeviation:'10'}));
+  defs.appendChild(clearingFilter);
+  const clearingSoftEdge=el('filter',{id:'walkedClearingSoftEdge',x:'-55%',y:'-180%',width:'210%',height:'460%'});
+  clearingSoftEdge.appendChild(el('feGaussianBlur',{stdDeviation:'7'}));
+  defs.appendChild(clearingSoftEdge);
+  const maskFilter=el('filter',{id:'walkedMaskBlur',x:'-55%',y:'-180%',width:'210%',height:'460%'});
+  maskFilter.appendChild(el('feGaussianBlur',{stdDeviation:'7'}));
+  defs.appendChild(maskFilter);
+  const vegetationMask=el('mask',{id:'walkedVegetationMask',maskUnits:'userSpaceOnUse',x:-80,y:-80,
+    width:WORLD_W+160,height:WORLD_H+160});
+  vegetationMask.appendChild(el('rect',{x:-80,y:-80,width:WORLD_W+160,height:WORLD_H+160,fill:'#fff'}));
+  defs.appendChild(vegetationMask);
+  worldLayer.appendChild(defs);
+  drawDistricts(worldLayer);
+  drawRiver(worldLayer);
+
+  drawWalkedClearing(worldLayer);
+  const roads=el('g',{id:'roadNetwork'});
+  worldLayer.appendChild(roads);
+  edges.forEach(([a,b])=>{
+    const from=nodes[a],to=nodes[b],geometry=getEdgeGeometry(a,b);
+    const d=`M ${from.x} ${from.y} Q ${geometry.control.x} ${geometry.control.y} ${to.x} ${to.y}`;
+    const mainRoad=geometry.roadClass==='main';
+    const width=mainRoad?16:6.5;
+    roads.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#405747':'#354C3B','stroke-width':width+(mainRoad?4:3),'stroke-linecap':'butt','stroke-linejoin':'round',opacity:'.92'}));
+    roads.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#C8C29A':'#D6CAA0','stroke-width':width,'stroke-linecap':'butt','stroke-linejoin':'round'}));
+    roads.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#E6DCB3':'#EEE5C7','stroke-width':mainRoad?1.1:.75,'stroke-linecap':'butt','stroke-linejoin':'round',opacity:'.72'}));
+  });
+  const vegetationLayer=el('g',{id:'vegetationLayer',mask:'url(#walkedVegetationMask)'});
+  drawPlants(vegetationLayer);
+  worldLayer.appendChild(vegetationLayer);
+  drawMajorPlaceLabels(worldLayer);
+  drawWalkedTrails(worldLayer);
+}
+function drawPin(x, y, icon, bg, label, id, delay, badgeNum){
+  const g = el('g',{id: id||'', class:'waypoint', style: delay? `animation-delay:${delay}s`:''});
+  g.appendChild(el('circle',{cx:x,cy:y,r:14,fill:bg,stroke:'#fff','stroke-width':2.5, filter:'drop-shadow(0 3px 5px rgba(90,68,40,0.3))'}));
+  drawIconAt(g,icon,x,y,17,'#fff');
+  if(label){
+    const labelWidth=Math.max(74,label.length*34+22),labelY=y+24;
+    g.appendChild(el('rect',{x:x-labelWidth/2,y:labelY,width:labelWidth,height:38,rx:13,fill:'#FFF9EB',stroke:'#D6C8A8','stroke-width':1.5,opacity:'.98'}));
+    const lt = el('text',{x, y:labelY+26, class:'map-place-label', 'text-anchor':'middle'});
+    lt.textContent = label;
+    g.appendChild(lt);
+  }
+  if(badgeNum){
+    g.appendChild(el('circle',{cx:x+11,cy:y-11,r:8,fill:'#43392D',stroke:'#fff','stroke-width':2}));
+    const bt = el('text',{x:x+11,y:y-7.5,'text-anchor':'middle','font-size':'10','font-weight':'700',fill:'#fff'});
+    bt.textContent = badgeNum;
+    g.appendChild(bt);
+  }
+  dynamicLayer.appendChild(g);
+  return g;
+}
+function addRouteArrows(pathPoints){
+  const INTERVAL = 120;
+  let acc = 0, nextMark = 70;
+  for(let i=0;i<pathPoints.length-1;i++){
+    const a=pathPoints[i], b=pathPoints[i+1];
+    const segLen = Math.hypot(b.x-a.x, b.y-a.y);
+    while(segLen>0 && acc+segLen >= nextMark){
+      const t = Math.max(0, Math.min(1, (nextMark-acc)/segLen));
+      const px = a.x+(b.x-a.x)*t, py = a.y+(b.y-a.y)*t;
+      const angle = Math.atan2(b.y-a.y, b.x-a.x)*180/Math.PI;
+      dynamicLayer.appendChild(el('polygon',{
+        points:'-7,-5.5 7,0 -7,5.5', fill:'#fff', opacity:'0.95',
+        transform:`translate(${px},${py}) rotate(${angle})`,
+        style:'filter:drop-shadow(0 1px 2px rgba(90,68,40,0.4));'
+      }));
+      nextMark += INTERVAL;
+    }
+    acc += segLen;
+  }
+}
+function fitViewToPoints(points, padding, animate){
+  padding = padding || 46;
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  points.forEach(p=>{ minX=Math.min(minX,p.x); maxX=Math.max(maxX,p.x); minY=Math.min(minY,p.y); maxY=Math.max(maxY,p.y); });
+  const w = Math.max(1,maxX-minX), h = Math.max(1,maxY-minY);
+  let scale = Math.min((400-padding*2)/w, (300-padding*2)/h, MAX_SCALE);
+  scale = Math.max(scale, MIN_SCALE);
+  const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
+  view.scale = scale;
+  view.tx = 200 - cx*scale;
+  view.ty = 150 - cy*scale;
+  clampView();
+  if(animate){
+    mapContent.style.transition = 'transform .55s cubic-bezier(.4,0,.2,1)';
+    applyMapTransform();
+    setTimeout(()=>{ mapContent.style.transition=''; }, 580);
+  } else {
+    mapContent.style.transition = '';
+    applyMapTransform();
+  }
+}
+function drawDynamic(){
+  dynamicLayer.innerHTML = "";
+  const home = nodes[homeNodeId];
+  const g = el('g',{id:'homePin'});
+  g.appendChild(el('circle',{cx:home.x, cy:home.y, r:15, fill:'rgba(43,80,73,0.15)'}));
+  g.appendChild(el('circle',{cx:home.x, cy:home.y, r:8, fill:'#2B5049', stroke:'#fff', 'stroke-width':3}));
+  dynamicLayer.appendChild(g);
+  if(state.dest){ drawPin(nodes[state.dest.nodeId].x, nodes[state.dest.nodeId].y, 'mappin', '#E27F3E', null, 'destPin'); }
+}
+function redraw(){ drawDynamic(); }
+
+function setDestination(nodeId,label='目的地'){
+  state.dest = { nodeId,label };
+  document.getElementById('hintPill').style.display = 'none';
+  document.getElementById('resultArea').innerHTML = '';
+  document.getElementById('regenBtn').style.display = 'none';
+  redraw();
+  updateGenBtn();
+}
+function focusNode(nodeId){
+  const point=nodes[nodeId];
+  view.tx=200-point.x*view.scale;
+  view.ty=150-point.y*view.scale;
+  clampView();
+  applyMapTransform();
+}
+function updateGenBtn(){
+  const btn = document.getElementById('genBtn');
+  if(state.dest){ btn.disabled=false; btn.textContent = '寄り道ルートを探す'; }
+  else { btn.disabled=true; btn.textContent='まず目的地を決めよう'; }
+}
+function hashToPoint(text){
+  let h = 0;
+  for(let i=0;i<text.length;i++){ h = (h*31 + text.charCodeAt(i)) >>> 0; }
+  return h % nodes.length;
+}
+const facilityKeywords={
+  station:['駅'],shopping:['商店街','買い物','商店'],bookstore:['本屋','書店'],park:['公園'],
+  museum:['美術館','博物館'],university:['大学'],restaurant:['飲食店','食事','レストラン'],
+  ginkgo:['並木','銀杏'],clinic:['病院','診療所','クリニック'],post:['郵便局','郵便'],
+  school:['小学校','青空小学校','あおぞら小学校','学校'],library:['図書館','としょかん'],
+  plaza:['広場'],firestation:['消防署'],community:['公民館','集会所']
+};
+function matchingFacilities(query){
+  const normalized=query.toLocaleLowerCase().replace(/\s+/g,'');
+  if(!normalized) return [];
+  return LANDMARKS.filter(place=>{
+    if(place.isRiver) return false;
+    const terms=[place.name,place.key,...(facilityKeywords[place.key]||[])];
+    return terms.some(term=>term.toLocaleLowerCase().replace(/\s+/g,'').includes(normalized)||
+      normalized.includes(term.toLocaleLowerCase().replace(/\s+/g,'')));
+  });
+}
+const destInput=document.getElementById('destInput');
+const searchSuggestions=document.getElementById('searchSuggestions');
+let searchPinTimer;
+function chooseFacility(place){
+  setDestination(place.nodeId,place.name);
+  focusNode(place.nodeId);
+  searchSuggestions.classList.remove('open');
+  destInput.value=place.name;
+  destInput.blur();
+}
+function updateFacilitySearch(){
+  const query=destInput.value.trim();
+  const matches=matchingFacilities(query).slice(0,4);
+  searchSuggestions.replaceChildren();
+  matches.forEach(place=>{
+    const option=document.createElement('button');
+    option.type='button';
+    option.className='search-suggestion';
+    option.setAttribute('role','option');
+    option.textContent=place.name;
+    option.addEventListener('pointerdown',event=>event.preventDefault());
+    option.addEventListener('click',()=>chooseFacility(place));
+    searchSuggestions.appendChild(option);
+  });
+  searchSuggestions.classList.toggle('open',matches.length>0&&document.activeElement===destInput);
+  clearTimeout(searchPinTimer);
+  if(query.length>=2&&matches.length===1){
+    searchPinTimer=setTimeout(()=>{
+      if(destInput.value.trim()===query){
+        setDestination(matches[0].nodeId,matches[0].name);
+        focusNode(matches[0].nodeId);
+      }
+    },350);
+  }
+}
+destInput.addEventListener('input',updateFacilitySearch);
+destInput.addEventListener('focus',updateFacilitySearch);
+destInput.addEventListener('keydown',event=>{
+  if(event.key==='Escape') searchSuggestions.classList.remove('open');
+  if(event.key==='Enter'&&destInput.value.trim()){
+    event.preventDefault();
+    const query=destInput.value.trim(),matches=matchingFacilities(query);
+    if(matches.length) chooseFacility(matches[0]);
+    else{
+      setDestination(hashToPoint(query),query);
+      searchSuggestions.classList.remove('open');
+      destInput.blur();
+    }
+  }
+});
+document.addEventListener('pointerdown',event=>{
+  if(!event.target.closest('.search-row')) searchSuggestions.classList.remove('open');
+});
+
+/* ---------------- map zoom & pan ---------------- */
+let view = {scale:1, tx:0, ty:0};
+function initView(){
+  const home = nodes[homeNodeId];
+  view = {scale:1, tx: 205-home.x, ty: 150-home.y};
+}
+function applyMapTransform(){ mapContent.setAttribute('transform', `translate(${view.tx},${view.ty}) scale(${view.scale})`); }
+const MIN_SCALE = 0.2, MAX_SCALE = 3;
+function clampView(){
+  view.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, view.scale));
+  const minTx = -(WORLD_W*view.scale-400), minTy = -(WORLD_H*view.scale-300);
+  view.tx = Math.min(0, Math.max(minTx, view.tx));
+  view.ty = Math.min(0, Math.max(minTy, view.ty));
+}
+function zoomBy(factor){
+  const cx=200, cy=150, prevScale=view.scale;
+  view.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, view.scale*factor));
+  const k = view.scale/prevScale;
+  view.tx = cx - k*(cx - view.tx);
+  view.ty = cy - k*(cy - view.ty);
+  clampView(); applyMapTransform();
+}
+document.getElementById('zoomIn').addEventListener('click', ()=>zoomBy(1.18));
+document.getElementById('zoomOut').addEventListener('click', ()=>zoomBy(1/1.18));
+document.getElementById('locateBtn').addEventListener('click',()=>{
+  focusNode(homeNodeId);
+  document.getElementById('hintPill').style.display='none';
+});
+svg.addEventListener('wheel', e=>{ e.preventDefault(); zoomBy(e.deltaY<0?1.1:0.9); }, {passive:false});
+
+function viewBoxPointFromEvent(e){
+  const rect = svg.getBoundingClientRect();
+  const vbW = 400, vbH = 300;
+  // "slice" mode: the viewBox is scaled up to fully COVER the rendered box (like CSS background-size:cover),
+  // then centered and cropped — so a simple linear (clientX/rect.width*vbW) mapping is wrong whenever the
+  // element's on-screen aspect ratio differs from 400:300 (which it always does on a tall phone screen).
+  const scale = Math.max(rect.width/vbW, rect.height/vbH);
+  const renderedW = vbW*scale, renderedH = vbH*scale;
+  const offsetX = (rect.width - renderedW)/2, offsetY = (rect.height - renderedH)/2;
+  return { x: (e.clientX-rect.left-offsetX)/scale, y: (e.clientY-rect.top-offsetY)/scale };
+}
+function contentPointFromViewBox(vp){ return { x:(vp.x-view.tx)/view.scale, y:(vp.y-view.ty)/view.scale }; }
+
+const activePointers = new Map();
+let dragInfo = null, pinchInfo = null;
+svg.addEventListener('pointerdown', e=>{
+  svg.setPointerCapture(e.pointerId);
+  activePointers.set(e.pointerId, {x:e.clientX,y:e.clientY});
+  if(activePointers.size===1){
+    dragInfo = {startX:e.clientX, startY:e.clientY, startTx:view.tx, startTy:view.ty, moved:false};
+  } else if(activePointers.size===2){
+    const pts=[...activePointers.values()];
+    pinchInfo = {startDist:Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y), startScale:view.scale, startTx:view.tx, startTy:view.ty};
+    dragInfo=null;
+  }
+});
+svg.addEventListener('pointermove', e=>{
+  if(!activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, {x:e.clientX,y:e.clientY});
+  if(activePointers.size===2 && pinchInfo){
+    const pts=[...activePointers.values()];
+    const d=Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+    view.scale = pinchInfo.startScale*(d/pinchInfo.startDist);
+    view.tx = pinchInfo.startTx; view.ty = pinchInfo.startTy;
+    clampView(); applyMapTransform();
+  } else if(activePointers.size===1 && dragInfo){
+    const dx = e.clientX-dragInfo.startX, dy=e.clientY-dragInfo.startY;
+    if(Math.abs(dx)>4||Math.abs(dy)>4) dragInfo.moved=true;
+    const rect=svg.getBoundingClientRect();
+    const sliceScale = Math.max(rect.width/400, rect.height/300); // must match viewBoxPointFromEvent's slice math
+    view.tx = dragInfo.startTx + dx/sliceScale;
+    view.ty = dragInfo.startTy + dy/sliceScale;
+    clampView(); applyMapTransform();
+  }
+});
+function endPointer(e){
+  const wasSingle = activePointers.size===1, info = dragInfo;
+  activePointers.delete(e.pointerId);
+  if(activePointers.size===0){
+    if(wasSingle && info && !info.moved){
+      const cp = contentPointFromViewBox(viewBoxPointFromEvent(e));
+      if(selectedFacilityKey){
+        selectedFacilityKey=null;
+        drawMajorPlaceLabels(worldLayer);
+      }
+      setDestination(nearestNode(cp.x, cp.y));
+      document.getElementById('destInput').value = '';
+    }
+    dragInfo=null; pinchInfo=null;
+  } else if(activePointers.size===1){
+    const [remaining] = [...activePointers.values()];
+    dragInfo = {startX:remaining.x, startY:remaining.y, startTx:view.tx, startTy:view.ty, moved:true};
+    pinchInfo=null;
+  }
+}
+svg.addEventListener('pointerup', endPointer);
+svg.addEventListener('pointercancel', endPointer);
+
+/* ---------------- draggable bottom sheet (iOS Maps style) ---------------- */
+const sheetEl = document.getElementById('sheet');
+const grabberZone = document.getElementById('grabberZone');
+let snapH = {full:0, half:0, peek:0}, currentH = 0, sheetState = 'half';
+function computeSnapPoints(){
+  const appH = document.getElementById('app').clientHeight;
+  snapH.peek = 150;
+  snapH.half = appH*0.56;
+  snapH.full = appH*0.90;
+}
+function setSheetHeight(px, animate){
+  sheetEl.style.transition = animate ? 'height .32s cubic-bezier(.4,0,.2,1)' : 'none';
+  sheetEl.style.height = px + 'px';
+  currentH = px;
+}
+function snapTo(name, animate=true){ sheetState=name; setSheetHeight(snapH[name], animate); }
+window.addEventListener('resize', ()=>{ computeSnapPoints(); snapTo(sheetState,false); });
+computeSnapPoints(); snapTo('half', false);
+
+let sheetDragging=false, sheetDragStartY=0, sheetDragStartH=0;
+grabberZone.addEventListener('pointerdown', e=>{
+  sheetDragging=true; sheetDragStartY=e.clientY; sheetDragStartH=currentH;
+  grabberZone.setPointerCapture(e.pointerId);
+  sheetEl.classList.add('dragging');
+  setSheetHeight(currentH, false);
+});
+grabberZone.addEventListener('pointermove', e=>{
+  if(!sheetDragging) return;
+  const delta = sheetDragStartY - e.clientY; // dragging up = taller sheet
+  const nh = Math.min(snapH.full, Math.max(snapH.peek, sheetDragStartH + delta));
+  setSheetHeight(nh, false);
+});
+function endSheetDrag(){
+  if(!sheetDragging) return;
+  sheetDragging=false;
+  sheetEl.classList.remove('dragging');
+  const dists = {full:Math.abs(currentH-snapH.full), half:Math.abs(currentH-snapH.half), peek:Math.abs(currentH-snapH.peek)};
+  snapTo(Object.keys(dists).reduce((a,b)=> dists[a]<dists[b]?a:b), true);
+}
+grabberZone.addEventListener('pointerup', endSheetDrag);
+grabberZone.addEventListener('pointercancel', endSheetDrag);
+
+/* ---------------- route generation (mood-combination aware) ---------------- */
+function activeMoods(){
+  return [...new Set([...state.moods,...state.textMoods])];
+}
+function inferMoodsFromText(text){
+  const rules=[
+    ['people',['人混み','人が多','にぎやか','駅前','混雑']],
+    ['quiet',['静か','落ち着','避け','ひとり','一人']],
+    ['nature',['川','水辺','水面','緑','木々','自然','風']],
+    ['chill',['ぼんやり','ゆっくり','のんびり','ゆる']],
+    ['think',['考え','整理','悩み','頭']],
+    ['exercise',['歩きたい','運動','汗','坂']],
+    ['season',['季節','花','紅葉','春','夏','秋','冬']],
+    ['photo',['光','景色','きれい','写真','眺め']],
+    ['discovery',['知らない','初めて','発見','寄り道']],
+    ['blank',['何も考え','無心','ぼーっと','ぼんやり']],
+    ['ineffable',['言葉にでき','わからない','なんとなく','うまく言えない']]
+  ];
+  return rules.filter(([,words])=>words.some(word=>text.includes(word))).map(([mood])=>mood);
+}
+function routeStory(){
+  const moods=activeMoods(), text=state.customMood;
+  const water=/川|水辺|水面/.test(text)||moods.some(m=>['nature','blank'].includes(m));
+  const crowd=/駅前|人混み|人が多|混雑|にぎやか/.test(text)||moods.includes('quiet');
+  const opening=crowd?'人の多い駅前を避けて、':'';
+  if(water) return `${opening}川沿いを長く歩く道にしました。途中、光が差し込むきれいな情景や、水面のゆらぎを楽しめます。`;
+  if(moods.includes('ineffable')) return `${opening}決めつけずに、ふと気になった路地へ向かう道にしました。歩くうちに、まだ名前のない景色に出会えそうです。`;
+  if(moods.some(m=>['quiet','chill'].includes(m))) return `${opening}静かな路地をゆっくりたどる道にしました。足音や木々の揺れる音に耳を澄ませる時間が待っています。`;
+  if(moods.includes('exercise')) return `${opening}少し起伏のある道を選びました。坂を越えた先で、いつもより遠くまで街を見渡せます。`;
+  if(moods.some(m=>['discovery','photo','season'].includes(m))) return `${opening}見慣れた道を少し外れて、小さな発見が続く道にしました。ふと立ち止まりたくなる光景を探しながら歩けます。`;
+  if(moods.includes('blank')) return `${opening}考えごとはひと休みして、足の向くまま歩ける道にしました。景色の変化に身をまかせる時間を楽しめます。`;
+  return `${opening}いつもの道から少し離れて、急がず歩ける道にしました。途中で出会う景色を、自分のペースで楽しめます。`;
+}
+function pickSpots(n){
+  const moods=activeMoods();
+  if(!state.dest){
+    const pool = SPOTS.filter(s => s.tagW.includes(state.weather) && (moods.length===0 || s.tagM.some(t=>moods.includes(t))));
+    const usable = pool.length >= n ? pool : SPOTS;
+    return [...usable].sort(()=>Math.random()-0.5).slice(0,n);
+  }
+  // 「行って帰ってくる」形の遠回りを避けるため、home→目的地の進行方向上のちょうど良い
+  // 位置（等間隔の目標点）に近いスポットを優先しつつ、気分に合うスポットには加点する
+  const candidates = SPOTS.filter(s => s.tagW.includes(state.weather));
+  const targets = Array.from({length:n}, (_,i)=>(i+1)/(n+1));
+  const remaining = [...(candidates.length>=n ? candidates : SPOTS)];
+  const chosen = [];
+  targets.forEach(target=>{
+    const scored = remaining.map(s=>{
+      const moodMatch = moods.length===0 || s.tagM.some(t=>moods.includes(t));
+      return { s, score: Math.abs(spotT(s.nodeId)-target) + (moodMatch?0:0.35) + Math.random()*0.06 };
+    });
+    scored.sort((a,b)=>a.score-b.score);
+    const pick = scored[0].s;
+    chosen.push(pick);
+    remaining.splice(remaining.indexOf(pick), 1);
+  });
+  return chosen;
+}
+const MOOD_LABELS = {discovery:"新たな発見", chill:"のんびり", think:"考え事する", nature:"自然を感じる",
+  quiet:"静かに過ごす", photo:"写真映え", season:"季節を感じる", people:"人を感じる", exercise:"運動したい",
+  blank:"何も考えない", ineffable:"言葉にできない"};
+function planRoute(chosenSpots, weightFn){
+  const uniqueSpots=[...new Map(chosenSpots
+    .filter(spot=>spot.nodeId!==homeNodeId&&spot.nodeId!==state.dest.nodeId)
+    .map(spot=>[spot.nodeId,spot])).values()];
+  const permutations=[];
+  function permute(remaining,ordered){
+    if(remaining.length===0){ permutations.push(ordered); return; }
+    remaining.forEach((spot,index)=>permute([...remaining.slice(0,index),...remaining.slice(index+1)],[...ordered,spot]));
+  }
+  permute(uniqueSpots,[]);
+  let best=null;
+  for(const ordered of permutations){
+    const nodeIds=[homeNodeId,...ordered.map(spot=>spot.nodeId),state.dest.nodeId];
+    if(new Set(nodeIds).size!==nodeIds.length) continue;
+    const result=routeThrough(nodeIds,weightFn);
+    if(result.path.length&&(!best||result.distance<best.result.distance)) best={result,ordered};
+  }
+  return best||{result:{path:[],distance:Infinity},ordered:[]};
+}
+
+function measureRouteDistance(path){
+  return path.slice(1).reduce((total,nodeId,index)=>{
+    const edge=adj[path[index]].find(candidate=>candidate.to===nodeId);
+    return total+(edge?.w||0);
+  },0);
+}
+function variedWeightFn(baseWeightFn,seed){
+  const offset=Math.floor(Math.random()*10000)+seed*37;
+  return (u,v,w)=>{
+    const noise=((u*31+v*17+offset)%97)/97;
+    return baseWeightFn(u,v,w)*(.4+noise*2);
+  };
+}
+function sampleRouteSpots(count){
+  const moods=activeMoods();
+  return SPOTS.filter(spot=>spot.nodeId!==homeNodeId&&spot.nodeId!==state.dest.nodeId)
+    .map(spot=>({
+      spot,
+      score:(spot.tagW.includes(state.weather)?0:.25)+
+        (moods.length&&!spot.tagM.some(mood=>moods.includes(mood))?0.2:0)+Math.random()
+    }))
+    .sort((a,b)=>a.score-b.score)
+    .slice(0,count)
+    .map(item=>item.spot);
+}
+function findRouteForTime(spotCount,weightFn,targetMinutes){
+  const maxSpots=Math.min(4,spotCount+1);
+  let best=null;
+  for(let trial=0;trial<96;trial++){
+    const count=trial===0?spotCount:trial%(maxSpots+1);
+    const spots=trial===0?pickSpots(count):sampleRouteSpots(count);
+    const variedWeight=trial===0?weightFn:variedWeightFn(weightFn,trial);
+    const planned=planRoute(spots,variedWeight);
+    if(!planned.result.path.length) continue;
+    const distance=measureRouteDistance(planned.result.path);
+    const duration=distance/SPEED_PX_PER_MIN;
+    const score=(Math.round(duration)===targetMinutes?0:1000000)+
+      Math.abs(duration-targetMinutes)*100+Math.abs(planned.ordered.length-spotCount)*.05;
+    if(!best||score<best.score){
+      best={...planned,result:{...planned.result,distance},extraNodeIds:[],score};
+      if(Math.round(duration)===targetMinutes&&planned.ordered.length===spotCount) break;
+    }
+  }
+  if(!best||Math.round(best.result.distance/SPEED_PX_PER_MIN)!==targetMinutes){
+    const candidates=SPOTS.filter(spot=>spot.nodeId!==homeNodeId&&spot.nodeId!==state.dest.nodeId);
+    searchSpots:
+    for(let seed=0;seed<4;seed++){
+      const routeWeight=seed===0?weightFn:variedWeightFn(weightFn,320+seed);
+      for(const spot of candidates){
+        const planned=planRoute([spot],routeWeight);
+        if(!planned.result.path.length) continue;
+        const distance=measureRouteDistance(planned.result.path);
+        const duration=distance/SPEED_PX_PER_MIN;
+        const score=(Math.round(duration)===targetMinutes?0:1000000)+
+          Math.abs(duration-targetMinutes)*100+Math.abs(planned.ordered.length-spotCount)*.05;
+        if(!best||score<best.score){
+          best={...planned,result:{...planned.result,distance},extraNodeIds:[],score};
+        }
+        if(Math.round(duration)===targetMinutes) break searchSpots;
+      }
+    }
+  }
+  const ordered=best?.ordered||[];
+  if(!best||Math.round(best.result.distance/SPEED_PX_PER_MIN)!==targetMinutes){
+    const detourNodes=nodes.map(node=>node.id)
+      .filter(nodeId=>nodeId!==homeNodeId&&nodeId!==state.dest.nodeId&&!ordered.some(spot=>spot.nodeId===nodeId))
+      .sort((a,b)=>{
+        const home=nodes[homeNodeId],destination=nodes[state.dest.nodeId];
+        const aEstimate=dist(home,nodes[a])+dist(nodes[a],destination);
+        const bEstimate=dist(home,nodes[b])+dist(nodes[b],destination);
+        return Math.abs(aEstimate-targetMinutes*SPEED_PX_PER_MIN)-
+          Math.abs(bEstimate-targetMinutes*SPEED_PX_PER_MIN);
+      });
+    searchDetours:
+    for(let seed=0;seed<2;seed++){
+      const detourWeight=seed===0?weightFn:variedWeightFn(weightFn,96+seed);
+      for(const nodeId of detourNodes){
+        for(let position=0;position<=ordered.length;position++){
+          const nodeIds=[homeNodeId,...ordered.slice(0,position).map(spot=>spot.nodeId),nodeId,
+            ...ordered.slice(position).map(spot=>spot.nodeId),state.dest.nodeId];
+          const route=routeThrough(nodeIds,detourWeight);
+          if(!route.path.length) continue;
+          const distance=measureRouteDistance(route.path);
+          const duration=distance/SPEED_PX_PER_MIN;
+          const score=(Math.round(duration)===targetMinutes?0:1000000)+
+            Math.abs(duration-targetMinutes)*100+Math.abs(ordered.length-spotCount)*.05;
+          if(!best||score<best.score){
+            best={result:{...route,distance},ordered,extraNodeIds:[nodeId],score};
+          }
+          if(Math.round(duration)===targetMinutes) break searchDetours;
+        }
+      }
+    }
+  }
+  if(!best||Math.round(best.result.distance/SPEED_PX_PER_MIN)!==targetMinutes){
+    for(let trial=0;trial<350;trial++){
+      const first=Math.floor(Math.random()*nodes.length);
+      const second=Math.floor(Math.random()*nodes.length);
+      if(first===second||first===homeNodeId||second===homeNodeId||
+        first===state.dest.nodeId||second===state.dest.nodeId||
+        ordered.some(spot=>spot.nodeId===first||spot.nodeId===second)) continue;
+      const position=Math.floor(Math.random()*(ordered.length+1));
+      const nodeIds=[homeNodeId,...ordered.slice(0,position).map(spot=>spot.nodeId),first,second,
+        ...ordered.slice(position).map(spot=>spot.nodeId),state.dest.nodeId];
+      const pairWeight=trial%3===0?weightFn:variedWeightFn(weightFn,192+trial);
+      const route=routeThrough(nodeIds,pairWeight);
+      if(!route.path.length) continue;
+      const distance=measureRouteDistance(route.path);
+      const duration=distance/SPEED_PX_PER_MIN;
+      const score=(Math.round(duration)===targetMinutes?0:1000000)+
+        Math.abs(duration-targetMinutes)*100+Math.abs(ordered.length-spotCount)*.05;
+      if(!best||score<best.score){
+        best={result:{...route,distance},ordered,extraNodeIds:[first,second],score};
+      }
+      if(Math.round(duration)===targetMinutes) break;
+    }
+  }
+  return best&&Math.round(best.result.distance/SPEED_PX_PER_MIN)===targetMinutes?best:null;
+}
+
+function generateRoute(){
+  const m = activeMoods();
+  let n = state.minutes <= 10 ? 1 : state.minutes <= 25 ? 2 : 3;
+  if(m.includes('think')) n = Math.max(1, n-1);
+  const weightFn = makeWeightFn(m);
+
+  const planned=findRouteForTime(n,weightFn,state.minutes);
+  if(!planned?.result.path.length){
+    showToast(`${iconInline('alert',15)} 指定時間に収まる道がありません。目的地を近くするか、余裕時間を延ばしてください`);
+    return;
+  }
+  const { result, ordered } = planned;
+
+  document.getElementById('genBtn').disabled = true;
+  document.getElementById('genBtn').textContent = 'ルートを描いています…';
+
+  redraw();
+  const pathPoints = sampleRouteGeometry(result.path);
+  const framePoints = [nodes[homeNodeId],...ordered.map(s=>nodes[s.nodeId]),
+    ...(planned.extraNodeIds||[]).map(nodeId=>nodes[nodeId]),nodes[state.dest.nodeId]];
+
+  const navStops=[
+    ...ordered.map(spot=>({nodeId:spot.nodeId,spot})),
+    ...(planned.extraNodeIds||[]).map(nodeId=>({nodeId}))
+  ].sort((a,b)=>result.path.indexOf(a.nodeId)-result.path.indexOf(b.nodeId));
+  const navPts = [
+    { x: nodes[homeNodeId].x, y: nodes[homeNodeId].y },
+    ...navStops.map(stop=>({x:nodes[stop.nodeId].x,y:nodes[stop.nodeId].y,...(stop.spot?{spot:stop.spot}:{})})),
+    { x: nodes[state.dest.nodeId].x, y: nodes[state.dest.nodeId].y }
+  ];
+  navPts.forEach((p,i)=>{ p.id=i; p.recordedThisWalk=false; });
+  state.lastRoutePts = navPts;
+  state.arrivalHandled = false;
+  const routeId=`michi_route_${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+  state.currentRoute = {
+    id:routeId,
+    nodePath:result.path.slice(),
+    points:pathPoints.map(p=>({x:p.x,y:p.y})),
+    distance:result.distance,
+    minutes:Math.max(1,Math.round(result.distance/SPEED_PX_PER_MIN)),
+    moods:[...m],
+    spots:ordered.map(s=>s.name),
+    story:routeStory(),
+    savedByUser:false,
+    recordedAt:new Date().toISOString()
+  };
+
+  // ① 選択タブを下げて地図を大きく見せる → ② カメラがルート全体に収まるよう動く
+  snapTo('peek', true);
+  fitViewToPoints(framePoints, 50, true);
+
+  // ③ カメラが落ち着いてから、道が「ピーッ」と辿られるように線を描く
+  setTimeout(()=>{
+    const d = routePathData(result.path);
+    const pathEl = el('path',{d, class:'route-path'});
+    dynamicLayer.insertBefore(pathEl, dynamicLayer.querySelector('#homePin'));
+    requestAnimationFrame(()=> pathEl.classList.add('drawn'));
+
+    // ④ 線が描き終わる頃に、矢印・スポットのピン・結果表示を出し、タブを半分の高さへ戻す
+    setTimeout(()=>{
+      addRouteArrows(pathPoints);
+      ordered.forEach((s,i)=>{
+        const p = nodes[s.nodeId];
+        drawPin(p.x, p.y, s.icon, '#7BA36A', null, null, i*0.12, i+1);
+      });
+      renderResult(ordered, result);
+      document.getElementById('regenBtn').style.display = 'block';
+      document.getElementById('genBtn').disabled = false;
+      document.getElementById('genBtn').textContent = 'ルート提案済み';
+      snapTo('half', true);
+    }, 1150);
+  }, 600);
+}
+
+function renderResult(spots, result){
+  const area = document.getElementById('resultArea');
+  const km = (result.distance/9000).toFixed(1); // 架空スケールの目安距離
+  const actualMin = Math.max(1, Math.round(measureRouteDistance(result.path) / SPEED_PX_PER_MIN));
+  const tags = activeMoods().map(m=>`<span class="why-tag">${MOOD_LABELS[m]}</span>`).join('');
+  area.innerHTML = `<div class="result-head"><div class="t">${iconInline('footprints',17)} 寄り道ルート</div>
+    <div class="result-stat">道なりで 約${km}km ・ 寄り道 ${spots.length}ヶ所</div></div>
+    <div class="why-card">
+      <div class="why-head">${iconInline('compass',16)} この道を選んだ理由</div>
+      <div class="why-body">${routeStory()}</div>
+      <div class="why-body" style="margin-top:8px;">${iconInline('clock',15)} 設定した余裕時間：${state.minutes}分／このルート：約${actualMin}分</div>
+      ${tags ? `<div class="why-tags">${tags}</div>` : ''}
+    </div>`;
+  spots.forEach((s,i)=>{
+    const card = document.createElement('div');
+    card.className = 'spot-card';
+    card.style.animationDelay = (i*0.08)+'s';
+    card.innerHTML = `<div class="spot-num-badge">${i+1}</div><div class="spot-thumb">${photoSVG(s,88,88)}</div>
+      <div class="spot-info"><div class="name">${s.name}</div></div>`;
+    area.appendChild(card);
+  });
+  const walkBtn = document.createElement('button');
+  walkBtn.className = 'walk-btn';
+  walkBtn.innerHTML = `${iconInline('compass',17)} 道草をはじめる`;
+  walkBtn.addEventListener('click', openNav);
+  area.appendChild(walkBtn);
+}
+
+/* ---------------- controls ---------------- */
+document.getElementById('timeSlider').addEventListener('input', (e)=>{
+  state.minutes = parseInt(e.target.value);
+  document.getElementById('minLabel').innerHTML = state.minutes + '<span style="font-size:11px;">分</span>';
+  document.getElementById('minDesc').textContent = TIME_DESC[state.minutes];
+});
+document.getElementById('moodGrid').querySelectorAll('.mood-chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    chip.classList.toggle('active');
+    state.moods = [...document.querySelectorAll('.mood-chip.active')].map(c=>c.dataset.v);
+  });
+});
+document.getElementById('moodInput').addEventListener('input',e=>{
+  state.customMood=e.target.value.trim();
+  state.textMoods=inferMoodsFromText(state.customMood);
+});
+document.getElementById('genBtn').addEventListener('click', ()=>{ if(state.dest) generateRoute(); });
+document.getElementById('regenBtn').addEventListener('click', generateRoute);
+
+/* ---------------- personal records ---------------- */
+let recordedSpots = [], savedRoutes = [], walkedRoutes = [];
+function loadRecorded(){
+  try{
+    const value=localStorage.getItem('michikusa-records');
+    const parsed=value ? JSON.parse(value) : {};
+    recordedSpots=Array.isArray(parsed.spots) ? parsed.spots : [];
+    savedRoutes=Array.isArray(parsed.routes) ? parsed.routes : [];
+    walkedRoutes=Array.isArray(parsed.walkedRoutes) ? parsed.walkedRoutes : savedRoutes;
+  }catch(err){ showToast(`${iconInline('alert',15)} 記録を読み込めませんでした`); }
+  updateStarBadge();
+}
+function saveRecorded(){
+  try{
+    localStorage.setItem('michikusa-records',JSON.stringify({spots:recordedSpots,routes:savedRoutes,walkedRoutes}));
+    return true;
+  }catch(err){ showToast(`${iconInline('alert',15)} 記録を保存できませんでした`); return false; }
+}
+function updateStarBadge(){
+  const count=recordedSpots.length+savedRoutes.length;
+  const b=document.getElementById('starBadge');
+  if(count>0){ b.style.display='flex'; b.textContent=count; }
+  else b.style.display='none';
+}
+function routePreviewSVG(points){
+  if(!points || points.length<2) return '';
+  const xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+  const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+  const w=Math.max(1,maxX-minX), h=Math.max(1,maxY-minY);
+  const mapped=points.map(p=>({x:24+(p.x-minX)/w*352,y:24+(p.y-minY)/h*152}));
+  const d=mapped.map((p,i)=>`${i?'L':'M'} ${p.x} ${p.y}`).join(' ');
+  return `<svg viewBox="0 0 400 200" class="photo" aria-label="記録した道の地図">
+    <rect width="400" height="200" fill="#F1E7D5"/>
+    <path d="M -10 22 C 100 50 100 90 205 80 S 300 130 410 100" fill="none" stroke="#A9D8E5" stroke-width="18" opacity=".7"/>
+    <path d="${d}" fill="none" stroke="#E27F3E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${mapped[0].x}" cy="${mapped[0].y}" r="7" fill="#2B5049" stroke="#fff" stroke-width="3"/>
+    <circle cx="${mapped[mapped.length-1].x}" cy="${mapped[mapped.length-1].y}" r="7" fill="#E27F3E" stroke="#fff" stroke-width="3"/>
+  </svg>`;
+}
+function renderGallery(){
+  const grid=document.getElementById('galleryGrid');
+  grid.innerHTML='';
+  document.getElementById('galleryTitle').textContent='自分の道草記録';
+  document.getElementById('gallerySub').textContent='お気に入りの場所と、歩いた道を見返せます。';
+  if(recordedSpots.length===0 && savedRoutes.length===0){
+    grid.innerHTML=`<div class="empty-state"><span class="ico" id="emptyRouteIcon"></span>まだ記録がありません。<br>歩いて見つけた場所や道を残してみましょう。</div>`;
+    document.getElementById('emptyRouteIcon').innerHTML=iconMarkup('forkpath',30);
+    return;
+  }
+  [...savedRoutes].reverse().forEach(route=>{
+    const card=document.createElement('div');
+    card.className='gcard route-card';
+    const date=new Date(route.recordedAt);
+    const timeStr=`${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+    card.innerHTML=`${routePreviewSVG(route.points)}<button class="rec-del" data-kind="route" data-id="${route.id}" aria-label="道の記録を削除">${iconMarkup('close',13)}</button>
+      <div class="gc-body"><div class="gc-name">${iconInline('route',14)} 道草の記録</div>
+      <div class="rec-time">${route.minutes}分 ・ 寄り道 ${route.spots.length}ヶ所 ・ ${timeStr}</div>
+      <div class="route-story">${route.story}</div></div>`;
+    grid.appendChild(card);
+  });
+  [...recordedSpots].reverse().forEach(record=>{
+    const card=document.createElement('div');
+    card.className='gcard';
+    const date=new Date(record.recordedAt);
+    const timeStr=`${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+    card.innerHTML=`${photoSVG(record.spot,300,200)}<button class="rec-del" data-kind="spot" data-id="${record.id}" aria-label="場所の記録を削除">${iconMarkup('close',13)}</button>
+      <div class="gc-body"><div class="gc-name">${iconInline(record.spot.icon,14)} ${record.spot.name}</div>
+      <div class="rec-time">${timeStr} に記録</div></div>`;
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll('.rec-del').forEach(btn=>btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    const previousSpots=recordedSpots, previousRoutes=savedRoutes;
+    if(btn.dataset.kind==='route') savedRoutes=savedRoutes.filter(r=>String(r.id)!==btn.dataset.id);
+    else recordedSpots=recordedSpots.filter(r=>String(r.id)!==btn.dataset.id);
+    if(!saveRecorded()){ recordedSpots=previousSpots; savedRoutes=previousRoutes; return; }
+    updateStarBadge(); renderGallery();
+  }));
+}
+document.getElementById('starBtn').addEventListener('click', ()=>{
+  renderGallery();
+  document.getElementById('gallerySheet').classList.add('open');
+});
+document.getElementById('closeGallery').addEventListener('click', ()=> document.getElementById('gallerySheet').classList.remove('open'));
+document.getElementById('gallerySheet').addEventListener('click', (e)=>{ if(e.target.id==='gallerySheet') e.currentTarget.classList.remove('open'); });
+
+/* ---------------- toast ---------------- */
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.innerHTML = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove('show'), 1700);
+}
+
+/* ---------------- walk mode / nav simulation ---------------- */
+let navStep = 0;
+function bearing(a,b){ return Math.atan2(b.y-a.y, b.x-a.x) * 180/Math.PI; }
+function openNav(){ navStep = 0; document.getElementById('navOverlay').classList.add('open'); renderNavStep(); }
+function closeNav(){ document.getElementById('navOverlay').classList.remove('open'); }
+document.getElementById('navClose').addEventListener('click', closeNav);
+function arrivalMapMarkup(points){
+  if(points.length<2){
+    const point=points[0]||{x:0,y:0};
+    points=[{x:point.x-1,y:point.y},{x:point.x+1,y:point.y}];
+  }
+  const xs=points.map(p=>p.x),ys=points.map(p=>p.y);
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const scale=Math.min(292/Math.max(1,maxX-minX),88/Math.max(1,maxY-minY));
+  const offsetX=160-(minX+maxX)*scale/2,offsetY=73-(minY+maxY)*scale/2;
+  const mapped=points.map(p=>({x:p.x*scale+offsetX,y:p.y*scale+offsetY}));
+  let length=0;
+  for(let i=1;i<mapped.length;i++) length+=dist(mapped[i-1],mapped[i]);
+  const path=mapped.map((p,i)=>`${i?'L':'M'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const foliage=['#91AB7E','#A4B58A','#719477','#84A27B','#A0AD81'];
+  let forest='';
+  for(let i=0;i<82;i++){
+    const x=(i*73+19)%320,y=(i*47+11)%150,r=3+(i*7%7);
+    forest+=`<circle cx="${x}" cy="${y}" r="${r}" fill="${foliage[i%foliage.length]}" opacity=".85"/>`;
+  }
+  const cumulative=[0];
+  for(let i=1;i<mapped.length;i++) cumulative[i]=cumulative[i-1]+dist(mapped[i-1],mapped[i]);
+  let leaves='';
+  for(let i=0;i<56;i++){
+    const progress=(i+.5)/56,target=progress*length;
+    let segmentIndex=0;
+    while(segmentIndex<cumulative.length-2 && cumulative[segmentIndex+1]<target) segmentIndex++;
+    const a=mapped[segmentIndex],b=mapped[segmentIndex+1],segment=dist(a,b)||1;
+    const t=Math.max(0,Math.min(1,(target-cumulative[segmentIndex])/segment));
+    const side=i%2?1:-1,offset=side*(8+(i*11%13));
+    const x=a.x+(b.x-a.x)*t-(b.y-a.y)/segment*offset;
+    const y=a.y+(b.y-a.y)*t+(b.x-a.x)/segment*offset;
+    const delay=(progress*1.65).toFixed(2),radius=(2.5+i%4).toFixed(1);
+    leaves+=`<g class="arrival-leaf" style="--leaf-delay:${delay}s"><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${radius}" fill="${foliage[i%foliage.length]}"/><circle cx="${(x+4).toFixed(1)}" cy="${(y-2).toFixed(1)}" r="${(radius*.7).toFixed(1)}" fill="${foliage[(i+2)%foliage.length]}"/></g>`;
+  }
+  return `<svg class="arrival-map" viewBox="0 0 320 150" role="img" aria-label="歩いた道に沿って植物が消え、道が見えてくるアニメーション">
+    <rect width="320" height="150" fill="#397A47"/>${forest}${leaves}
+    <path d="${path}" fill="none" stroke="#315D3B" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+    <path class="arrival-road" style="--route-length:${Math.max(length,1).toFixed(1)}" d="${path}" fill="none" stroke="#D4E783" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${path}" fill="none" stroke="#EFF5B0" stroke-width="1.5" stroke-linecap="round" opacity=".85"/>
+    <circle cx="${mapped[0].x.toFixed(1)}" cy="${mapped[0].y.toFixed(1)}" r="6" fill="#2B5049" stroke="#fff" stroke-width="2"/>
+    <circle cx="${mapped[mapped.length-1].x.toFixed(1)}" cy="${mapped[mapped.length-1].y.toFixed(1)}" r="6" fill="#E27F3E" stroke="#fff" stroke-width="2"/>
+  </svg>`;
+}
+function clearGrassOnRoute(points){
+  const patches=[...worldLayer.querySelectorAll('.vegetation')];
+  const onRoute=patches.map(patch=>{
+    const point={x:Number(patch.dataset.x),y:Number(patch.dataset.y)};
+    let closest=Infinity, progress=0, passed=0;
+    for(let i=0;i<points.length-1;i++){
+      const a=points[i],b=points[i+1],length=dist(a,b);
+      const d=distToSegment(point,a,b);
+      if(d<closest){ closest=d; progress=passed+length*Math.max(0,Math.min(1,((point.x-a.x)*(b.x-a.x)+(point.y-a.y)*(b.y-a.y))/(length*length||1))); }
+      passed+=length;
+    }
+    return {patch,closest,progress};
+  }).filter(item=>item.closest<20).sort((a,b)=>a.progress-b.progress);
+  const total=points.slice(1).reduce((sum,p,i)=>sum+dist(points[i],p),0)||1;
+  onRoute.forEach(({patch,progress},i)=>setTimeout(()=>patch.classList.add('cleared'),Math.min(1800,progress/total*1400)+i%4*35));
+}
+function saveCurrentRoute(){
+  const route=state.currentRoute;
+  if(!route || route.savedByUser) return;
+  savedRoutes.push({...route,savedByUser:true});
+  if(!saveRecorded()){ savedRoutes.pop(); return; }
+  route.savedByUser=true;
+  updateStarBadge();
+  const button=document.getElementById('saveRouteBtn');
+  if(button){ button.disabled=true; button.innerHTML=`${iconInline('forkpath',17)} この道草を記録しました`; }
+  showToast(`${iconInline('forkpath',15)} 道草を記録しました`);
+}
+
+function renderNavStep(){
+  const pts = state.lastRoutePts;
+  const body = document.getElementById('navBody');
+  document.getElementById('navProgressFill').style.width = Math.round((navStep/(pts.length-1))*100)+'%';
+
+  if(navStep >= pts.length-1){
+    if(!state.arrivalHandled && state.currentRoute){
+      state.arrivalHandled=true;
+      if(!walkedRoutes.some(item=>item.id===state.currentRoute.id)){
+        walkedRoutes.push({...state.currentRoute});
+        if(!saveRecorded()) walkedRoutes.pop();
+        drawWalkedClearing(worldLayer);
+        drawWalkedTrails(worldLayer);
+      }
+      clearGrassOnRoute(state.currentRoute.points);
+    }
+    const route=state.currentRoute;
+    const saved=route?.savedByUser===true;
+    body.innerHTML = `<div class="arrival-box"><div class="big">${iconMarkup('flag',38)}</div>
+      <div class="t">目的地に到着しました</div>
+      <div class="arrival-note">この道を通りました。道沿いの植物がほどけて、歩いた道があらわれます。</div>
+      ${route?arrivalMapMarkup(route.points):''}
+      <div class="s">いつもの道から少し離れて、どんな景色に出会えたでしょう。</div>
+      ${route?`<div class="route-result-title">${iconInline('forkpath',15)} この道を選んだ理由</div>`:''}
+      ${route?`<div class="route-story">${route.story}</div>
+        <button class="save-route-btn" id="saveRouteBtn" ${saved?'disabled':''}>${iconInline('forkpath',17)} ${saved?'この道草を記録しました':'この道草を記録する'}</button>`:''}</div>`;
+    const arrivalMap=document.querySelector('.arrival-map');
+    if(arrivalMap) requestAnimationFrame(()=>arrivalMap.classList.add('revealing'));
+    if(route && !saved) document.getElementById('saveRouteBtn').addEventListener('click',saveCurrentRoute);
+    document.getElementById('navNextBtn').textContent = '地図に戻る';
+    document.getElementById('navNextBtn').onclick = closeNav;
+    return;
+  }
+
+  const cur = pts[navStep], next = pts[navStep+1];
+  const brg = bearing(cur, next);
+  let instruction='まっすぐ進む', sub='振動なし・そのまま';
+  if(navStep > 0){
+    const prevBrg = bearing(pts[navStep-1], cur);
+    let delta = brg - prevBrg;
+    while(delta > 180) delta -= 360; while(delta < -180) delta += 360;
+    if(Math.abs(delta) < 22){ instruction='まっすぐ進む'; sub='振動なし・そのまま'; }
+    else if(delta >= 22 && delta < 100){ instruction='まもなく右へ'; sub='右に曲がります'; }
+    else if(delta <= -22 && delta > -100){ instruction='まもなく左へ'; sub='左に曲がります'; }
+    else { instruction='大きく曲がります'; sub='方向が大きく変わります'; }
+  } else { instruction='スタートします'; sub='道案内をはじめます'; }
+
+  const spotForRecord = cur.spot || {name:`寄り道スポット #${navStep+1}`, icon:'mappin', note:'歩いている途中に見つけた、自分だけのお気に入り。', palette:['#E9C08A','#D98F52']};
+  let nearHtml = '';
+  if(cur.spot){
+    nearHtml = `<div class="spot-near"><div class="thumb">${photoSVG(cur.spot,60,60)}</div>
+      <div class="info"><div class="name">${cur.spot.name}</div></div></div>`;
+  }
+  const recorded = cur.recordedThisWalk;
+  const earbudHtml = `<button class="earbud-btn ${recorded?'done':''}" id="earbudBtn" ${recorded?'disabled':''}>
+      <span class="pulse-ico">${iconMarkup('forkpath',17)}</span> ${recorded? '記録済み' : 'この場所をお気に入りに記録'}</button>`;
+
+  body.innerHTML = `<div class="compass"><span class="arrow" style="transform:rotate(${brg+90}deg)">${iconMarkup('arrowright',37)}</span></div>
+    <div class="nav-instruction">${instruction}</div><div class="nav-sub">${sub}</div>${nearHtml}${earbudHtml}`;
+
+  if(!cur.recordedThisWalk){
+    document.getElementById('earbudBtn').addEventListener('click', async ()=>{
+      cur.recordedThisWalk = true;
+      recordedSpots.push({ id: Date.now()+'_'+Math.random().toString(36).slice(2,6), spot: spotForRecord, recordedAt: new Date().toISOString(), x: cur.x, y: cur.y });
+      if(!saveRecorded()){ recordedSpots.pop(); cur.recordedThisWalk=false; return; }
+      updateStarBadge();
+      showToast(`${iconInline('forkpath',15)} 場所を記録しました`);
+      renderNavStep();
+    });
+  }
+  document.getElementById('navNextBtn').innerHTML = `次へ進む ${iconMarkup('arrowright',15)}`;
+  document.getElementById('navNextBtn').onclick = ()=>{ navStep++; renderNavStep(); };
+}
+
+/* ---------------- tutorial ---------------- */
+const TUTORIAL_SLIDES = [
+  {
+    svg: `<svg viewBox="0 0 280 140" xmlns="http://www.w3.org/2000/svg">
+      <text x="140" y="18" text-anchor="middle" font-size="11" fill="#B5AB98" font-family="Noto Sans JP">最短・最速</text>
+      <line x1="20" y1="34" x2="260" y2="34" stroke="#C9BFA9" stroke-width="3" stroke-dasharray="2 7" stroke-linecap="round"/>
+      <circle cx="20" cy="34" r="5" fill="#8C8272"/><circle cx="260" cy="34" r="5" fill="#8C8272"/>
+      <text x="140" y="78" text-anchor="middle" font-size="12" fill="#E27F3E" font-weight="700" font-family="Zen Maru Gothic">余裕のある時間</text>
+      <path d="M 20 128 C 70 90, 90 130, 140 100 C 190 70, 210 128, 260 100" fill="none" stroke="#E27F3E" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="20" cy="128" r="6" fill="#2B5049"/><circle cx="260" cy="100" r="6" fill="#E27F3E"/>
+      <g transform="translate(68 89) scale(.7)" fill="none" stroke="#43392D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS.tree}</g>
+      <g transform="translate(138 79) scale(.7)" fill="none" stroke="#43392D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS.coffee}</g>
+      <g transform="translate(208 92) scale(.7)" fill="none" stroke="#43392D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS.palette}</g>
+    </svg>`,
+    title: '「最短・最速」ではなく、「余裕のある時間」を楽しむ。',
+    body: 'いつもの通勤・通学を、ただの移動で終わらせない。道草は、目的地までの「余裕のある時間」を楽しむアプリです。'
+  },
+  {
+    svg: `<svg viewBox="0 0 280 140" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="55" cy="65" r="34" fill="#FFF1E2" stroke="#E27F3E" stroke-width="3"/>
+      <line x1="55" y1="65" x2="55" y2="45" stroke="#E27F3E" stroke-width="3" stroke-linecap="round"/>
+      <line x1="55" y1="65" x2="70" y2="72" stroke="#E27F3E" stroke-width="3" stroke-linecap="round"/>
+      <text x="55" y="115" text-anchor="middle" font-size="11" fill="#8C8272">余裕時間</text>
+      <path d="M 95 65 C 130 30, 150 100, 190 65" fill="none" stroke="#E27F3E" stroke-width="3.5" stroke-dasharray="1 8" stroke-linecap="round"/>
+      <circle cx="222" cy="65" r="16" fill="#E27F3E" stroke="#fff" stroke-width="3"/>
+      <g transform="translate(214 56) scale(.67)" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS.mappin}</g>
+      <text x="222" y="115" text-anchor="middle" font-size="11" fill="#8C8272">目的地</text>
+    </svg>`,
+    title: '目的地と余裕時間を設定するだけ',
+    body: '到着までの「余裕時間」を設定すると、いつもの最短距離ではない寄り道ルートを提案。歩きながら、新しい景色や発見に出会えます。'
+  },
+  {
+    svg: `<svg viewBox="0 0 280 140" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(35 12) scale(.72)" fill="none" stroke="#E27F3E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS.sun}</g>
+      <g transform="translate(130 12) scale(.72)" fill="none" stroke="#8C8272" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS.cloud}</g>
+      <g transform="translate(225 12) scale(.72)" fill="none" stroke="#4E94A8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS.cloudrain}</g>
+      <rect x="20" y="42" width="90" height="24" rx="12" fill="#fff"/>
+      <text x="65" y="58" text-anchor="middle" font-size="10.5" fill="#8C8272" font-weight="600">のんびり</text>
+      <rect x="120" y="42" width="90" height="24" rx="12" fill="#E27F3E"/>
+      <text x="165" y="58" text-anchor="middle" font-size="10.5" fill="#fff" font-weight="700">写真映え</text>
+      <path d="M 100 84 L 130 84 L 145 76 L 145 92 Z" fill="#EFA765"/>
+      <circle cx="90" cy="84" r="16" fill="#FFF1E2" stroke="#E27F3E" stroke-width="2.5"/>
+      <svg x="78" y="72" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E27F3E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS.brain}</svg>
+      <text x="90" y="118" text-anchor="middle" font-size="10.5" fill="#8C8272" font-weight="700">気分</text>
+      <path d="M 155 84 C 185 60, 205 100, 235 84" fill="none" stroke="#E27F3E" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="235" cy="84" r="6" fill="#E27F3E"/>
+    </svg>`,
+    title: '自分にぴったりの道草体験',
+    body: '天気や気分によって、通る道や寄り道スポットが変わります。「何も考えない」「言葉にできない」気分も、その日の道選びに反映できます。'
+  },
+  {
+    svg: `<svg viewBox="0 0 280 140" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="30" cy="70" r="7" fill="#2B5049" stroke="#fff" stroke-width="2"/>
+      <path d="M 30 70 C 90 35, 150 100, 240 70" fill="none" stroke="#E27F3E" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="30" cy="70" r="7" fill="#2B5049" stroke="#fff" stroke-width="2"/>
+      <circle cx="240" cy="70" r="7" fill="#E27F3E" stroke="#fff" stroke-width="2"/>
+      <g transform="translate(228 54) scale(.9)" fill="none" stroke="#7BA36A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS.flower}</g>
+    </svg>`,
+    title: 'さあ、道草をはじめよう',
+    body: ''
+  }
+];
+let tutIndex = 0;
+function renderTutorial(){
+  const s = TUTORIAL_SLIDES[tutIndex];
+  document.getElementById('tutSlide').innerHTML = `<div class="tut-illust">${s.svg}</div>
+    <div class="tut-title">${s.title}</div>${s.body?`<div class="tut-body">${s.body}</div>`:''}`;
+  document.querySelectorAll('.tut-dot').forEach(d=> d.classList.toggle('active', parseInt(d.dataset.i)===tutIndex));
+  document.getElementById('tutNextBtn').textContent = tutIndex===TUTORIAL_SLIDES.length-1 ? '道草をはじめる' : '次へ';
+}
+function closeTutorial(){
+  document.getElementById('tutorialOverlay').classList.remove('open');
+  try{ localStorage.setItem('tutorial-seen','1'); }catch(e){ /* in-memory only this session */ }
+}
+function openTutorial(){
+  tutIndex = 0; renderTutorial();
+  document.getElementById('tutorialOverlay').classList.add('open');
+}
+function maybeShowTutorial(){
+  try{
+    if(localStorage.getItem('tutorial-seen')!=='1') openTutorial();
+  }catch(e){ openTutorial(); }
+}
+document.getElementById('tutNextBtn').addEventListener('click', ()=>{
+  if(tutIndex < TUTORIAL_SLIDES.length-1){ tutIndex++; renderTutorial(); } else { closeTutorial(); }
+});
+document.getElementById('tutSkip').addEventListener('click', closeTutorial);
+document.querySelectorAll('.tut-dot').forEach(d=>{
+  d.addEventListener('click', ()=>{ tutIndex = parseInt(d.dataset.i); renderTutorial(); });
+});
+let tutDragStartX = null;
+const tutViewport = document.getElementById('tutViewport');
+tutViewport.addEventListener('pointerdown', e=>{ tutDragStartX = e.clientX; });
+tutViewport.addEventListener('pointerup', e=>{
+  if(tutDragStartX===null) return;
+  const dx = e.clientX - tutDragStartX;
+  if(dx < -40 && tutIndex < TUTORIAL_SLIDES.length-1){ tutIndex++; renderTutorial(); }
+  else if(dx > 40 && tutIndex > 0){ tutIndex--; renderTutorial(); }
+  tutDragStartX = null;
+});
+document.getElementById('helpBtn').addEventListener('click', openTutorial);
+
+/* ---------------- init ---------------- */
+loadRecorded();
+buildGraph();
+drawWorld();
+initView();
+drawDynamic();
+clampView();
+applyMapTransform();
+renderGallery();
+maybeShowTutorial();
+</script>
+</body>
+</html>
