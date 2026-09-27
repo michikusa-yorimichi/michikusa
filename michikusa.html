@@ -65,12 +65,14 @@
   @keyframes pinPop{0%{opacity:0; transform:scale(.2) translateY(6px);} 100%{opacity:1; transform:scale(1) translateY(0);}}
 
   /* ---------- draggable sheet ---------- */
-  #sheet{position:absolute; left:0; right:0; bottom:0; z-index:8; background:rgba(250,247,240,.97);
+  #sheet{position:absolute; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column;
+    background:rgba(250,247,240,.97);
     -webkit-backdrop-filter:blur(22px) saturate(1.18); backdrop-filter:blur(22px) saturate(1.18);
     border-top:1px solid rgba(255,255,255,.8); border-radius:var(--radius-card) var(--radius-card) 0 0; box-shadow:0 -5px 18px rgba(45,58,44,.12);
-    overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y;}
+    overflow:hidden; touch-action:pan-y;}
   #sheet.dragging{overflow-y:hidden;}
-  .sheet-inner{padding:10px 20px calc(24px + env(safe-area-inset-bottom)) 20px;}
+  .sheet-inner{flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:10px 20px calc(24px + env(safe-area-inset-bottom)) 20px; touch-action:pan-y;}
   .grabber-zone{padding:10px 0 6px 0; touch-action:none; cursor:grab;}
   .grabber{width:36px; height:4px; background:var(--ink-faint); opacity:.5; border-radius:99px; margin:0 auto;}
 
@@ -149,6 +151,11 @@
   .walk-btn{width:100%; margin-top:14px; padding:15px; border:none; border-radius:var(--radius-card);
     background:var(--ink); color:#fff; font-size:14.5px; font-weight:700; font-family:'Zen Maru Gothic',sans-serif;
     display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;}
+  .route-start-dock{flex:none; padding:10px 20px calc(12px + env(safe-area-inset-bottom));
+    background:linear-gradient(0deg,rgba(250,247,240,.99) 72%,rgba(250,247,240,.84));}
+  .route-start-dock[hidden]{display:none;}
+  .route-start-dock .walk-btn{min-height:52px; margin:0; background:linear-gradient(135deg,var(--orange),var(--orange-deep));
+    box-shadow:0 4px 12px rgba(226,127,62,.28);}
   .save-route-btn{width:100%; margin-top:9px; padding:13px; border:1px solid var(--moss); border-radius:var(--radius-control);
     background:transparent; color:var(--moss-deep); font-size:13px; font-weight:700; font-family:'Zen Maru Gothic',sans-serif;
     line-height:1.5; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;}
@@ -338,6 +345,9 @@
       <button class="btn-secondary" id="regenBtn" style="display:none;"><span id="regenIcon"></span> 別の寄り道を見る</button>
 
       <div id="resultArea"></div>
+    </div>
+    <div class="route-start-dock" id="routeStartDock" hidden>
+      <button class="walk-btn" id="walkBtn"></button>
     </div>
   </div>
 
@@ -890,32 +900,27 @@ function distanceToWalkedRoute(point){
   return nearest;
 }
 function drawDistricts(container){
-  const greens=['#91AB7E','#A4B58A','#719477','#84A27B','#A0AD81','#789878'];
-  for(let i=0;i<82;i++){
-    const cx=mapRandom()*WORLD_W,cy=mapRandom()*WORLD_H,rx=75+mapRandom()*150,ry=48+mapRandom()*118;
-    const points=Array.from({length:9},(_,index)=>{
-      const angle=index*Math.PI*2/9;
-      const scale=.72+mapRandom()*.55;
-      return {x:cx+Math.cos(angle)*rx*scale,y:cy+Math.sin(angle)*ry*scale};
-    });
-    let d='';
-    points.forEach((point,index)=>{
-      const next=points[(index+1)%points.length];
-      const mid={x:(point.x+next.x)/2,y:(point.y+next.y)/2};
-      d+=`${index?'':'M'} ${mid.x.toFixed(1)} ${mid.y.toFixed(1)} Q ${point.x.toFixed(1)} ${point.y.toFixed(1)} `;
-    });
-    d+='Z';
-    container.appendChild(el('path',{d,fill:greens[i%greens.length],opacity:(.15+mapRandom()*.18).toFixed(2)}));
+  const tints=['#F3E9D0','#F3E9D0','#F5DCDA','#F6E7B8'];
+  for(let row=0;row<GRID_ROWS-1;row++) for(let col=0;col<GRID_COLS-1;col++){
+    const x=GRID_ORIGIN+col*GRID_SPACING,y=GRID_ORIGIN+row*GRID_SPACING;
+    container.appendChild(el('rect',{x:x+10,y:y+10,width:GRID_SPACING-20,height:GRID_SPACING-20,rx:6,
+      fill:tints[Math.floor(mapRandom()*tints.length)],opacity:'.48'}));
+    const buildingCount=2+Math.floor(mapRandom()*2);
+    for(let i=0;i<buildingCount;i++){
+      const width=14+mapRandom()*20,height=14+mapRandom()*20;
+      const bx=x+16+mapRandom()*(GRID_SPACING-32-width),by=y+16+mapRandom()*(GRID_SPACING-32-height);
+      container.appendChild(el('rect',{x:bx,y:by,width,height,rx:2,fill:'#FFFFFF',opacity:'.62'}));
+    }
   }
 }
 function makePlant(container,x,y,kind,scale,rotation){
   const treeKinds=['roundtree','conifer'];
-  const g=el('g',{class:`vegetation ${kind}-patch${treeKinds.includes(kind)?' tree-patch':''}`,'data-x':x,'data-y':y,opacity:(.84+mapRandom()*.16).toFixed(2),
+  const g=el('g',{class:`vegetation ${kind}-patch${treeKinds.includes(kind)?' tree-patch':''}`,'data-x':x,'data-y':y,opacity:(.38+mapRandom()*.14).toFixed(2),
     transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rotation.toFixed(1)}) scale(${scale.toFixed(2)})`});
-  const leaf=['#4D7954','#588258','#64895A','#70915C','#789663'][Math.floor(mapRandom()*5)];
-  const light=['#AFC48A','#B8C88B','#C2CC98','#A5BC83'][Math.floor(mapRandom()*4)];
+  const leaf=['#789A73','#82A17A','#8DA982','#94AD83','#9AAE86'][Math.floor(mapRandom()*5)];
+  const light=['#C5D2AB','#CBD5AD','#D2D9B7','#BFCEA2'][Math.floor(mapRandom()*4)];
   if(kind==='roundtree'){
-    g.appendChild(el('path',{d:'M-30 9 C-38 2-33-11-23-13 C-23-26-9-32 1-24 C10-34 26-27 26-15 C39-9 38 5 27 11 C23 23 7 25 0 17 C-10 27-27 22-27 13Z',fill:'#496F4D',opacity:'.7'}));
+    g.appendChild(el('path',{d:'M-30 9 C-38 2-33-11-23-13 C-23-26-9-32 1-24 C10-34 26-27 26-15 C39-9 38 5 27 11 C23 23 7 25 0 17 C-10 27-27 22-27 13Z',fill:'#789376',opacity:'.35'}));
     g.appendChild(el('path',{d:'M-24 3 C-31-5-23-17-13-17 C-9-28 6-27 10-17 C21-23 31-13 26-4 C36 4 27 16 17 13 C10 23-3 20-7 13 C-18 18-27 11-24 3Z',fill:leaf}));
     g.appendChild(el('path',{d:'M-16-9 C-14-18-4-20 2-14 C8-22 20-17 19-9 C28-5 24 5 16 7 C10 16-2 13-5 7 C-13 11-21 2-16-4Z',fill:light,opacity:'.72'}));
     [[-20,-7,2.5],[10,-14,2],[18,3,1.8],[-4,7,1.7]].forEach(([cx,cy,r],index)=>{
@@ -981,7 +986,7 @@ function drawPlants(container){
   function hasSpace(point,radius,gap=8){
     return occupied.every(item=>dist(item,point)>=radius+item.radius+gap);
   }
-  for(let i=0,planted=0;i<50000&&planted<520;i++){
+  for(let i=0,planted=0;i<30000&&planted<280;i++){
     const kind=treeKinds[Math.floor(mapRandom()*treeKinds.length)];
     const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,scale=.7+mapRandom()*.38,rotation=mapRandom()*360;
     const radius=44*scale;
@@ -991,7 +996,7 @@ function drawPlants(container){
     occupied.push({x,y,radius});
     planted++;
   }
-  for(let i=0,planted=0;i<90000&&planted<3200;i++){
+  for(let i=0,planted=0;i<50000&&planted<1000;i++){
     const kind=groundKinds[Math.floor(mapRandom()*groundKinds.length)];
     const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,scale=kind==='groundcover'?1.05+mapRandom()*.42:kind==='tuft'?.8+mapRandom()*.34:.68+mapRandom()*.42,rotation=mapRandom()*360;
     const point={x,y};
@@ -1003,11 +1008,11 @@ function drawPlants(container){
   }
   const flowerColors=['#F0D88D','#E7B8B9','#F5EBD1','#CFD993'];
   const flowerPoints=[];
-  for(let i=0,planted=0;i<18000&&planted<300;i++){
+  for(let i=0,planted=0;i<10000&&planted<110;i++){
     const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,scale=1+mapRandom()*.55,point={x,y};
     const radius=14*scale;
     if(distanceToRoad(point)<18||distToRiver(point)<34||flowerPoints.some(other=>dist(other,point)<78)) continue;
-    const g=el('g',{class:'vegetation flower-patch','data-x':x,'data-y':y,opacity:'.94',transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(2)})`});
+    const g=el('g',{class:'vegetation flower-patch','data-x':x,'data-y':y,opacity:'.48',transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(2)})`});
     for(let petal=0;petal<5;petal++){
       const angle=petal*Math.PI*2/5;
       const cx=Math.cos(angle)*4.4,cy=Math.sin(angle)*4.4;
@@ -1021,7 +1026,7 @@ function drawPlants(container){
   for(const [a,b] of edges){
     const geometry=getEdgeGeometry(a,b),start=nodes[a],end=nodes[b];
     const count=Math.max(1,Math.floor(geometry.length/24));
-    for(let i=0;i<count&&roadsideCount<1500;i++){
+    for(let i=0;i<count&&roadsideCount<420;i++){
       const t=(i+.5)/count,u=1-t;
       const x=u*u*start.x+2*u*t*geometry.control.x+t*t*end.x;
       const y=u*u*start.y+2*u*t*geometry.control.y+t*t*end.y;
@@ -1141,7 +1146,7 @@ function drawMajorPlaceLabels(container){
 function drawWorld(){
   mapSeed=271828;
   worldLayer.innerHTML = "";
-  worldLayer.appendChild(el('rect',{x:-60,y:-60,width:WORLD_W+120,height:WORLD_H+120,fill:'#789674'}));
+  worldLayer.appendChild(el('rect',{x:-60,y:-60,width:WORLD_W+120,height:WORLD_H+120,fill:'#F6EFDD'}));
   const defs=el('defs',{});
   const clearingFilter=el('filter',{id:'walkedClearingBlur',x:'-70%',y:'-220%',width:'240%',height:'540%'});
   clearingFilter.appendChild(el('feGaussianBlur',{stdDeviation:'10'}));
@@ -1161,6 +1166,9 @@ function drawWorld(){
   drawRiver(worldLayer);
 
   drawWalkedClearing(worldLayer);
+  const vegetationLayer=el('g',{id:'vegetationLayer',mask:'url(#walkedVegetationMask)'});
+  drawPlants(vegetationLayer);
+  worldLayer.appendChild(vegetationLayer);
   const roads=el('g',{id:'roadNetwork'});
   worldLayer.appendChild(roads);
   edges.forEach(([a,b])=>{
@@ -1168,13 +1176,10 @@ function drawWorld(){
     const d=`M ${from.x} ${from.y} Q ${geometry.control.x} ${geometry.control.y} ${to.x} ${to.y}`;
     const mainRoad=geometry.roadClass==='main';
     const width=mainRoad?16:6.5;
-    roads.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#405747':'#354C3B','stroke-width':width+(mainRoad?4:3),'stroke-linecap':'butt','stroke-linejoin':'round',opacity:'.92'}));
-    roads.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#C8C29A':'#D6CAA0','stroke-width':width,'stroke-linecap':'butt','stroke-linejoin':'round'}));
-    roads.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#E6DCB3':'#EEE5C7','stroke-width':mainRoad?1.1:.75,'stroke-linecap':'butt','stroke-linejoin':'round',opacity:'.72'}));
+    roads.appendChild(el('path',{d,fill:'none',stroke:'#D6C9B1','stroke-width':width+4,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.78'}));
+    roads.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#F2E7CC':'#FBF6EA','stroke-width':width,'stroke-linecap':'round','stroke-linejoin':'round'}));
+    roads.appendChild(el('path',{d,fill:'none',stroke:'#FFFFFF','stroke-width':mainRoad?1.1:.75,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.55'}));
   });
-  const vegetationLayer=el('g',{id:'vegetationLayer',mask:'url(#walkedVegetationMask)'});
-  drawPlants(vegetationLayer);
-  worldLayer.appendChild(vegetationLayer);
   drawMajorPlaceLabels(worldLayer);
   drawWalkedTrails(worldLayer);
 }
@@ -1243,8 +1248,8 @@ function drawDynamic(){
   dynamicLayer.innerHTML = "";
   const home = nodes[homeNodeId];
   const g = el('g',{id:'homePin'});
-  g.appendChild(el('circle',{cx:home.x, cy:home.y, r:15, fill:'rgba(43,80,73,0.15)'}));
-  g.appendChild(el('circle',{cx:home.x, cy:home.y, r:8, fill:'#2B5049', stroke:'#fff', 'stroke-width':3}));
+  g.appendChild(el('circle',{cx:home.x, cy:home.y, r:15, fill:'rgba(226,127,62,0.22)'}));
+  g.appendChild(el('circle',{cx:home.x, cy:home.y, r:8, fill:'#E27F3E', stroke:'#fff', 'stroke-width':3}));
   dynamicLayer.appendChild(g);
   if(state.dest){ drawPin(nodes[state.dest.nodeId].x, nodes[state.dest.nodeId].y, 'mappin', '#E27F3E', null, 'destPin'); }
 }
@@ -1255,6 +1260,7 @@ function setDestination(nodeId,label='目的地'){
   document.getElementById('hintPill').style.display = 'none';
   document.getElementById('resultArea').innerHTML = '';
   document.getElementById('regenBtn').style.display = 'none';
+  document.getElementById('routeStartDock').hidden = true;
   redraw();
   updateGenBtn();
 }
@@ -1698,6 +1704,7 @@ function generateRoute(){
     showToast(`${iconInline('alert',15)} 指定時間に収まる道がありません。目的地を近くするか、余裕時間を延ばしてください`);
     return;
   }
+  document.getElementById('routeStartDock').hidden = true;
   const { result, ordered } = planned;
 
   document.getElementById('genBtn').disabled = true;
@@ -1782,11 +1789,10 @@ function renderResult(spots, result){
       <div class="spot-info"><div class="name">${s.name}</div></div>`;
     area.appendChild(card);
   });
-  const walkBtn = document.createElement('button');
-  walkBtn.className = 'walk-btn';
+  const walkBtn = document.getElementById('walkBtn');
   walkBtn.innerHTML = `${iconInline('compass',17)} 道草をはじめる`;
-  walkBtn.addEventListener('click', openNav);
-  area.appendChild(walkBtn);
+  walkBtn.onclick = openNav;
+  document.getElementById('routeStartDock').hidden = false;
 }
 
 /* ---------------- controls ---------------- */
@@ -1843,7 +1849,7 @@ function routePreviewSVG(points){
     <rect width="400" height="200" fill="#F1E7D5"/>
     <path d="M -10 22 C 100 50 100 90 205 80 S 300 130 410 100" fill="none" stroke="#A9D8E5" stroke-width="18" opacity=".7"/>
     <path d="${d}" fill="none" stroke="#E27F3E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${mapped[0].x}" cy="${mapped[0].y}" r="7" fill="#2B5049" stroke="#fff" stroke-width="3"/>
+    <circle cx="${mapped[0].x}" cy="${mapped[0].y}" r="7" fill="#E27F3E" stroke="#fff" stroke-width="3"/>
     <circle cx="${mapped[mapped.length-1].x}" cy="${mapped[mapped.length-1].y}" r="7" fill="#E27F3E" stroke="#fff" stroke-width="3"/>
   </svg>`;
 }
@@ -1948,7 +1954,7 @@ function arrivalMapMarkup(points){
     <path d="${path}" fill="none" stroke="#315D3B" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
     <path class="arrival-road" style="--route-length:${Math.max(length,1).toFixed(1)}" d="${path}" fill="none" stroke="#D4E783" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="${path}" fill="none" stroke="#EFF5B0" stroke-width="1.5" stroke-linecap="round" opacity=".85"/>
-    <circle cx="${mapped[0].x.toFixed(1)}" cy="${mapped[0].y.toFixed(1)}" r="6" fill="#2B5049" stroke="#fff" stroke-width="2"/>
+    <circle cx="${mapped[0].x.toFixed(1)}" cy="${mapped[0].y.toFixed(1)}" r="6" fill="#E27F3E" stroke="#fff" stroke-width="2"/>
     <circle cx="${mapped[mapped.length-1].x.toFixed(1)}" cy="${mapped[mapped.length-1].y.toFixed(1)}" r="6" fill="#E27F3E" stroke="#fff" stroke-width="2"/>
   </svg>`;
 }
