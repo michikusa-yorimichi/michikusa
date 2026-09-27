@@ -21,7 +21,7 @@
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--cream);
     font-family:'Noto Sans JP',sans-serif; color:var(--ink);}
-  #app{position:relative; width:100%; height:100vh; max-width:480px; margin:0 auto;
+  #app{position:relative; width:100%; height:100vh; height:100dvh; max-width:480px; margin:0 auto;
     background:var(--cream); overflow:hidden;}
 
   /* ---------- map (full background) ---------- */
@@ -251,19 +251,30 @@
   #tutorialOverlay.open{opacity:1; pointer-events:auto;}
   .tut-skip{position:absolute; top:calc(env(safe-area-inset-top) + 16px); right:18px; background:none; border:none;
     color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; z-index:2; padding:6px;}
-  .tut-viewport{flex:1; display:flex; align-items:center; justify-content:center; padding:60px 30px 10px 30px; touch-action:pan-y; min-height:0;}
-  .tut-slide{display:flex; flex-direction:column; align-items:center; text-align:center; gap:16px; animation:tutIn .35s ease;}
+  .tut-viewport{flex:1 1 auto; display:flex; align-items:center; justify-content:center; overflow-y:auto; overflow-x:hidden;
+    overscroll-behavior:contain; padding:max(60px,calc(env(safe-area-inset-top) + 44px)) 30px 12px; touch-action:pan-y; min-height:0;}
+  .tut-slide{display:flex; flex:none; flex-direction:column; align-items:center; text-align:center; gap:16px; margin-block:auto; animation:tutIn .35s ease;}
   @keyframes tutIn{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
   .tut-illust{width:100%; max-width:280px;}
   .tut-illust svg{width:100%; height:auto; display:block;}
   .tut-title{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:19px; color:var(--ink); line-height:1.5; max-width:290px;}
   .tut-body{font-size:13.5px; color:var(--ink-soft); line-height:1.8; max-width:300px;}
-  .tut-dots{display:flex; justify-content:center; gap:7px; padding:6px 0 4px 0;}
+  .tut-dots{display:flex; flex:none; justify-content:center; gap:7px; padding:6px 0 4px 0;}
   .tut-dot{width:7px; height:7px; border-radius:50%; background:var(--ink-faint); opacity:.5; cursor:pointer;}
   .tut-dot.active{background:var(--orange-deep); opacity:1; width:20px; border-radius:99px; transition:all .25s ease;}
-  .tut-next{margin:14px 24px calc(22px + env(safe-area-inset-bottom)) 24px; padding:16px; border:none; border-radius:var(--radius-card);
+  .tut-next{flex:none; margin:14px 24px calc(22px + env(safe-area-inset-bottom)) 24px; padding:16px; border:none; border-radius:var(--radius-card);
     background:linear-gradient(135deg,var(--orange),var(--orange-deep)); color:#fff; font-size:15px; font-weight:700;
     font-family:'Zen Maru Gothic',sans-serif; cursor:pointer; box-shadow:0 4px 12px rgba(226,127,62,0.2);}
+
+  @media (max-height:640px){
+    .tut-viewport{padding:max(44px,calc(env(safe-area-inset-top) + 32px)) 24px 8px;}
+    .tut-slide{gap:clamp(6px,1.5vh,12px);}
+    .tut-illust{max-width:clamp(140px,35dvh,220px);}
+    .tut-title{font-size:clamp(15px,4.5vw,18px);}
+    .tut-body{font-size:12px;line-height:1.55;}
+    .tut-dots{padding:4px 0;}
+    .tut-next{margin:8px 16px calc(12px + env(safe-area-inset-bottom));padding:13px;}
+  }
 
   ::-webkit-scrollbar{width:0px;}
 </style>
@@ -1440,7 +1451,7 @@ let snapH = {full:0, half:0, peek:0}, currentH = 0, sheetState = 'half';
 function computeSnapPoints(){
   const appH = document.getElementById('app').clientHeight;
   snapH.peek = 150;
-  snapH.half = appH*0.56;
+  snapH.half = Math.min(appH-100, appH*(0.56 + Math.max(0, (650-appH)/1000)));
   snapH.full = appH*0.90;
 }
 function setSheetHeight(px, animate){
