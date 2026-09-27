@@ -1000,6 +1000,55 @@ function drawPlants(container){
       container.appendChild(group);
     }
   }
+  const grassColors=['#71936B','#829F72','#91A87A','#A1B184'];
+  for(const [a,b] of edges){
+    const samples=getEdgeGeometry(a,b).samples;
+    let distanceSincePatch=42;
+    for(let i=1;i<samples.length;i++){
+      const start=samples[i-1],end=samples[i],dx=end.x-start.x,dy=end.y-start.y;
+      const length=Math.hypot(dx,dy);
+      while(distanceSincePatch<length){
+        const t=distanceSincePatch/length;
+        const x=start.x+dx*t,y=start.y+dy*t;
+        const offset=13+mapRandom()*9;
+        for(const side of [-1,1]){
+          const px=x-(dy/length)*offset*side,py=y+(dx/length)*offset*side;
+          const height=11+mapRandom()*13,width=5+mapRandom()*5;
+          const group=el('g',{class:'vegetation roadside-grass','data-x':px,'data-y':py,'data-clear-radius':'36',
+            opacity:'.82',transform:`translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${(mapRandom()*36-18).toFixed(1)})`});
+          let blades='';
+          for(let blade=0;blade<5;blade++){
+            const baseX=(blade-2)*width*.48,lean=(mapRandom()-.5)*width*1.8;
+            const bladeHeight=height*(.68+mapRandom()*.48);
+            blades+=`M${(baseX-width*.23).toFixed(1)} 2 Q${(baseX+lean*.2-width*.2).toFixed(1)} ${(-bladeHeight*.58).toFixed(1)} ${(baseX+lean).toFixed(1)} ${(-bladeHeight).toFixed(1)} Q${(baseX+lean+width*.2).toFixed(1)} ${(-bladeHeight*.5).toFixed(1)} ${(baseX+width*.25).toFixed(1)} 2Z`;
+          }
+          group.appendChild(el('path',{d:blades,fill:grassColors[Math.floor(mapRandom()*grassColors.length)],opacity:'.82'}));
+          container.appendChild(group);
+        }
+        distanceSincePatch+=68;
+      }
+      distanceSincePatch-=length;
+    }
+  }
+  const flowerColors=['#D99B91','#E7BD68','#F1E7C8','#C5CE91','#D7ABC1'];
+  for(let attempt=0,planted=0;attempt<12000&&planted<56;attempt++){
+    const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,point={x,y};
+    if(distToRiver(point)<38) continue;
+    const scale=.65+mapRandom()*1.25,color=flowerColors[Math.floor(mapRandom()*flowerColors.length)];
+    const group=el('g',{class:'vegetation flower-patch','data-x':x,'data-y':y,'data-clear-radius':'34',
+      opacity:'.78',transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(2)})`});
+    const stem=el('path',{d:'M0 2 Q-1 8 0 15 M0 10 Q-5 7-7 7 M0 12 Q5 9 7 9',fill:'none',stroke:'#78936D',
+      'stroke-width':'1.5','stroke-linecap':'round'});
+    group.appendChild(stem);
+    for(let petal=0;petal<5;petal++){
+      const angle=petal*Math.PI*2/5,cx=Math.cos(angle)*3.4,cy=Math.sin(angle)*3.4;
+      group.appendChild(el('ellipse',{cx:cx.toFixed(1),cy:cy.toFixed(1),rx:'3',ry:'2.1',fill:color,
+        transform:`rotate(${petal*72} ${cx.toFixed(1)} ${cy.toFixed(1)})`}));
+    }
+    group.appendChild(el('circle',{cx:0,cy:0,r:'1.8',fill:'#C89545'}));
+    container.appendChild(group);
+    planted++;
+  }
 }
 function drawWalkedClearing(container){
   const existing=container.querySelector('#walkedClearings');
