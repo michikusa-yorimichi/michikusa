@@ -27,6 +27,8 @@
   /* ---------- map (full background) ---------- */
   #mapArea{position:absolute; inset:0; z-index:0; overflow:hidden; touch-action:none;}
   svg#map{width:100%; height:100%; display:block; touch-action:none;}
+  #worldLayer> :not(#facilityMarkers),#dynamicLayer>*{pointer-events:none;}
+  .facility-marker{pointer-events:all;}
   .map-badge{position:absolute; top:calc(env(safe-area-inset-top) + 14px); z-index:5;
     background:var(--map-material); -webkit-backdrop-filter:blur(18px) saturate(1.25); backdrop-filter:blur(18px) saturate(1.25);
     border:1px solid rgba(255,255,255,.72); box-shadow:0 3px 12px rgba(45,58,44,.12);
@@ -163,7 +165,7 @@
   .save-route-btn:disabled{opacity:.65; cursor:default;}
   .route-story{margin-top:12px; padding:13px 15px; border-radius:var(--radius-control); background:rgba(135,151,122,.13); color:var(--ink);
     font-size:12.5px; line-height:1.8;}
-  .vegetation{transition:opacity .75s ease;}
+  .vegetation{pointer-events:none; transition:opacity .75s ease;}
   .vegetation.cleared{opacity:0;}
   .walked-clearing{opacity:1;transition:opacity 1.25s ease;}
   .walked-clearing.revealing{opacity:0;}
@@ -980,65 +982,21 @@ function makePlant(container,x,y,kind,scale,rotation){
   return g;
 }
 function drawPlants(container){
-  const treeKinds=['roundtree','roundtree','roundtree','conifer'];
-  const groundKinds=['groundcover','groundcover','groundcover','tuft','vine','fern','shrub','monstera'];
-  const occupied=[];
-  function hasSpace(point,radius,gap=8){
-    return occupied.every(item=>dist(item,point)>=radius+item.radius+gap);
-  }
-  for(let i=0,planted=0;i<30000&&planted<280;i++){
-    const kind=treeKinds[Math.floor(mapRandom()*treeKinds.length)];
-    const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,scale=.7+mapRandom()*.38,rotation=mapRandom()*360;
-    const radius=44*scale;
-    const point={x,y};
-    if(distanceToRoad(point)<19||distToRiver(point)<48||!hasSpace(point,radius,-11)) continue;
-    makePlant(container,x,y,kind,scale,rotation);
-    occupied.push({x,y,radius});
-    planted++;
-  }
-  for(let i=0,planted=0;i<50000&&planted<1000;i++){
-    const kind=groundKinds[Math.floor(mapRandom()*groundKinds.length)];
-    const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,scale=kind==='groundcover'?1.05+mapRandom()*.42:kind==='tuft'?.8+mapRandom()*.34:.68+mapRandom()*.42,rotation=mapRandom()*360;
-    const point={x,y};
-    const radius=(kind==='groundcover'?17:kind==='tuft'?18:25)*scale;
-    if(distanceToRoad(point)<7||distToRiver(point)<30||!hasSpace(point,radius,-13)) continue;
-    makePlant(container,x,y,kind,scale,rotation);
-    occupied.push({x,y,radius});
-    planted++;
-  }
-  const flowerColors=['#F0D88D','#E7B8B9','#F5EBD1','#CFD993'];
-  const flowerPoints=[];
-  for(let i=0,planted=0;i<10000&&planted<110;i++){
-    const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,scale=1+mapRandom()*.55,point={x,y};
-    const radius=14*scale;
-    if(distanceToRoad(point)<18||distToRiver(point)<34||flowerPoints.some(other=>dist(other,point)<78)) continue;
-    const g=el('g',{class:'vegetation flower-patch','data-x':x,'data-y':y,opacity:'.48',transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(2)})`});
-    for(let petal=0;petal<5;petal++){
-      const angle=petal*Math.PI*2/5;
-      const cx=Math.cos(angle)*4.4,cy=Math.sin(angle)*4.4;
-      g.appendChild(el('ellipse',{cx:cx.toFixed(1),cy:cy.toFixed(1),rx:3.8,ry:2.6,
-        fill:flowerColors[Math.floor(mapRandom()*flowerColors.length)],transform:`rotate(${petal*72} ${cx.toFixed(1)} ${cy.toFixed(1)})`}));
-    }
-    g.appendChild(el('circle',{cx:0,cy:0,r:2.3,fill:'#E6B84F'}));
-    container.appendChild(g);flowerPoints.push(point);planted++;
-  }
-  let roadsideCount=0;
-  for(const [a,b] of edges){
-    const geometry=getEdgeGeometry(a,b),start=nodes[a],end=nodes[b];
-    const count=Math.max(1,Math.floor(geometry.length/24));
-    for(let i=0;i<count&&roadsideCount<420;i++){
-      const t=(i+.5)/count,u=1-t;
-      const x=u*u*start.x+2*u*t*geometry.control.x+t*t*end.x;
-      const y=u*u*start.y+2*u*t*geometry.control.y+t*t*end.y;
-      const dx=end.x-start.x,dy=end.y-start.y,len=Math.hypot(dx,dy)||1;
-      const offset=(mapRandom()-.5)*13;
-      const point={x:x-(dy/len)*offset,y:y+(dx/len)*offset};
-      const scale=.78+mapRandom()*.15,radius=18*scale;
-      if(distanceToWalkedRoute(point)<radius+5) continue;
-      const growth=makePlant(container,point.x,point.y,mapRandom()<.92?'tuft':'groundcover',scale,mapRandom()*360);
-      growth.classList.add('roadside-growth');
-      occupied.push({x:point.x,y:point.y,radius});
-      roadsideCount++;
+  const canopyPath='M-58-8 C-57-25-40-34-26-28 C-18-43 2-43 12-31 C30-39 48-27 46-11 C62-2 56 17 41 21 C34 36 13 38 2 27 C-12 40-34 32-36 19 C-51 19-62 7-58-8Z';
+  for(let row=0;row<GRID_ROWS-1;row++) for(let col=0;col<GRID_COLS-1;col++){
+    const left=GRID_ORIGIN+col*GRID_SPACING,top=GRID_ORIGIN+row*GRID_SPACING;
+    for(let cluster=0;cluster<3;cluster++){
+      const x=left+42+mapRandom()*(GRID_SPACING-84);
+      const y=top+42+mapRandom()*(GRID_SPACING-84);
+      const point={x,y};
+      if(distToRiver(point)<42) continue;
+      const scale=.78+mapRandom()*.35;
+      const group=el('g',{class:'vegetation canopy-patch','data-x':x,'data-y':y,'data-clear-radius':'62',
+        transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(mapRandom()*50-25).toFixed(1)}) scale(${scale.toFixed(2)})`});
+      group.appendChild(el('path',{d:canopyPath,fill:'url(#canopyWash)'}));
+      group.appendChild(el('path',{d:'M-39-8 C-32-24-17-25-7-16 M-8-24 C2-36 18-29 21-19 M13 3 C26-9 40-2 39 9 M-26 10 C-17-1-3 0 4 10',
+        fill:'none',stroke:'#6F936B','stroke-width':'5','stroke-linecap':'round',opacity:'.12'}));
+      container.appendChild(group);
     }
   }
 }
@@ -1151,6 +1109,11 @@ function drawWorld(){
   const clearingFilter=el('filter',{id:'walkedClearingBlur',x:'-70%',y:'-220%',width:'240%',height:'540%'});
   clearingFilter.appendChild(el('feGaussianBlur',{stdDeviation:'10'}));
   defs.appendChild(clearingFilter);
+  const canopyWash=el('radialGradient',{id:'canopyWash',cx:'.48',cy:'.42',r:'.62'});
+  canopyWash.appendChild(el('stop',{offset:'0%','stop-color':'#6F936B','stop-opacity':'.34'}));
+  canopyWash.appendChild(el('stop',{offset:'58%','stop-color':'#91AB7E','stop-opacity':'.24'}));
+  canopyWash.appendChild(el('stop',{offset:'100%','stop-color':'#A4B58A','stop-opacity':'0'}));
+  defs.appendChild(canopyWash);
   const clearingSoftEdge=el('filter',{id:'walkedClearingSoftEdge',x:'-55%',y:'-180%',width:'210%',height:'460%'});
   clearingSoftEdge.appendChild(el('feGaussianBlur',{stdDeviation:'7'}));
   defs.appendChild(clearingSoftEdge);
@@ -1397,11 +1360,23 @@ function contentPointFromViewBox(vp){ return { x:(vp.x-view.tx)/view.scale, y:(v
 
 const activePointers = new Map();
 let dragInfo = null, pinchInfo = null;
+let mapTransformPending = false;
+function scheduleMapTransform(){
+  if(mapTransformPending) return;
+  mapTransformPending=true;
+  requestAnimationFrame(()=>{
+    mapTransformPending=false;
+    clampView();
+    applyMapTransform();
+  });
+}
 svg.addEventListener('pointerdown', e=>{
   svg.setPointerCapture(e.pointerId);
   activePointers.set(e.pointerId, {x:e.clientX,y:e.clientY});
   if(activePointers.size===1){
-    dragInfo = {startX:e.clientX, startY:e.clientY, startTx:view.tx, startTy:view.ty, moved:false};
+    const rect=svg.getBoundingClientRect();
+    dragInfo = {startX:e.clientX, startY:e.clientY, startTx:view.tx, startTy:view.ty,moved:false,
+      sliceScale:Math.max(rect.width/400,rect.height/300)};
   } else if(activePointers.size===2){
     const pts=[...activePointers.values()];
     pinchInfo = {startDist:Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y), startScale:view.scale, startTx:view.tx, startTy:view.ty};
@@ -1416,15 +1391,13 @@ svg.addEventListener('pointermove', e=>{
     const d=Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
     view.scale = pinchInfo.startScale*(d/pinchInfo.startDist);
     view.tx = pinchInfo.startTx; view.ty = pinchInfo.startTy;
-    clampView(); applyMapTransform();
+    scheduleMapTransform();
   } else if(activePointers.size===1 && dragInfo){
-    const dx = e.clientX-dragInfo.startX, dy=e.clientY-dragInfo.startY;
+    const dx = e.clientX-dragInfo.startX, dy = e.clientY-dragInfo.startY;
     if(Math.abs(dx)>4||Math.abs(dy)>4) dragInfo.moved=true;
-    const rect=svg.getBoundingClientRect();
-    const sliceScale = Math.max(rect.width/400, rect.height/300); // must match viewBoxPointFromEvent's slice math
-    view.tx = dragInfo.startTx + dx/sliceScale;
-    view.ty = dragInfo.startTy + dy/sliceScale;
-    clampView(); applyMapTransform();
+    view.tx = dragInfo.startTx + dx/dragInfo.sliceScale;
+    view.ty = dragInfo.startTy + dy/dragInfo.sliceScale;
+    scheduleMapTransform();
   }
 });
 function endPointer(e){
@@ -1443,7 +1416,9 @@ function endPointer(e){
     dragInfo=null; pinchInfo=null;
   } else if(activePointers.size===1){
     const [remaining] = [...activePointers.values()];
-    dragInfo = {startX:remaining.x, startY:remaining.y, startTx:view.tx, startTy:view.ty, moved:true};
+    const rect=svg.getBoundingClientRect();
+    dragInfo = {startX:remaining.x, startY:remaining.y, startTx:view.tx, startTy:view.ty,moved:true,
+      sliceScale:Math.max(rect.width/400,rect.height/300)};
     pinchInfo=null;
   }
 }
@@ -1970,7 +1945,7 @@ function clearGrassOnRoute(points){
       passed+=length;
     }
     return {patch,closest,progress};
-  }).filter(item=>item.closest<20).sort((a,b)=>a.progress-b.progress);
+  }).filter(item=>item.closest<Number(item.patch.dataset.clearRadius||20)).sort((a,b)=>a.progress-b.progress);
   const total=points.slice(1).reduce((sum,p,i)=>sum+dist(points[i],p),0)||1;
   onRoute.forEach(({patch,progress},i)=>setTimeout(()=>patch.classList.add('cleared'),Math.min(1800,progress/total*1400)+i%4*35));
 }
