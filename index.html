@@ -1067,11 +1067,7 @@ function drawWalkedClearing(container){
     const animate=route.id===state.currentRoute?.id&&state.arrivalHandled;
     if(animate) delayedRouteId=route.id;
     const group=el('g',{class:`walked-clearing${animate?' revealing':''}`});
-    group.appendChild(el('path',{d,fill:'none',stroke:'#68744F','stroke-width':54,'stroke-linecap':'round','stroke-linejoin':'round',
-      filter:'url(#walkedClearingBlur)',opacity:'.5'}));
-    group.appendChild(el('path',{d,fill:'none',stroke:'#E9E2D0','stroke-width':40,'stroke-linecap':'round','stroke-linejoin':'round',
-      filter:'url(#walkedClearingSoftEdge)',opacity:'.66'}));
-    group.appendChild(el('path',{d,fill:'none',stroke:'#F4EBD6','stroke-width':28,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.88'}));
+    // 歩いた道は植物を消すだけ（ベージュの道筋は描かない）
     layer.appendChild(group);
     if(animate) setTimeout(()=>group.classList.add('visible'),250);
     if(mask&&!animate){
@@ -1101,8 +1097,6 @@ function drawWalkedTrails(container){
     const points=route.points||[];
     if(points.length<2) return;
     const d=points.map((point,index)=>`${index?'L':'M'} ${point.x} ${point.y}`).join(' ');
-    layer.appendChild(el('path',{d,class:'walked-trail',fill:'none',stroke:'#8A8A70','stroke-width':7,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.72'}));
-    layer.appendChild(el('path',{d,class:'walked-trail',fill:'none',stroke:'#D8CEB5','stroke-width':4.5,'stroke-linecap':'round','stroke-linejoin':'round'}));
   });
   container.appendChild(layer);
 }
@@ -1985,7 +1979,11 @@ function showToast(msg){
 let navStep = 0;
 function bearing(a,b){ return Math.atan2(b.y-a.y, b.x-a.x) * 180/Math.PI; }
 function openNav(){ navStep = 0; document.getElementById('navOverlay').classList.add('open'); renderNavStep(); }
-function closeNav(){ document.getElementById('navOverlay').classList.remove('open'); }
+function closeNav(){
+  document.getElementById('navOverlay').classList.remove('open');
+  // 寄り道が終わったら、オレンジの道筋・矢印・スポットのピンを地図から消す
+  if(state.arrivalHandled) drawDynamic();
+}
 document.getElementById('navClose').addEventListener('click', closeNav);
 function arrivalMapMarkup(points){
   if(points.length<2){
@@ -2273,6 +2271,7 @@ maybeShowTutorial();
 </script>
 </body>
 </html>
+
  
 
 
