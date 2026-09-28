@@ -1979,11 +1979,7 @@ function showToast(msg){
 let navStep = 0;
 function bearing(a,b){ return Math.atan2(b.y-a.y, b.x-a.x) * 180/Math.PI; }
 function openNav(){ navStep = 0; document.getElementById('navOverlay').classList.add('open'); renderNavStep(); }
-function closeNav(){
-  document.getElementById('navOverlay').classList.remove('open');
-  // 寄り道が終わったら、オレンジの道筋・矢印・スポットのピンを地図から消す
-  if(state.arrivalHandled) drawDynamic();
-}
+function closeNav(){ document.getElementById('navOverlay').classList.remove('open'); }
 document.getElementById('navClose').addEventListener('click', closeNav);
 function arrivalMapMarkup(points){
   if(points.length<2){
