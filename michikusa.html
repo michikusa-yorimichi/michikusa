@@ -918,14 +918,15 @@ function drawDistricts(container){
 }
 function makePlant(container,x,y,kind,scale,rotation){
   const treeKinds=['roundtree','conifer'];
-  const g=el('g',{class:`vegetation ${kind}-patch${treeKinds.includes(kind)?' tree-patch':''}`,'data-x':x,'data-y':y,opacity:(.38+mapRandom()*.14).toFixed(2),
+  const g=el('g',{class:`vegetation ${kind}-patch${treeKinds.includes(kind)?' tree-patch':''}`,'data-x':x,'data-y':y,
+    'data-clear-radius':kind==='roundtree'?'32':'20',opacity:(.38+mapRandom()*.14).toFixed(2),
     transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rotation.toFixed(1)}) scale(${scale.toFixed(2)})`});
   const leaf=['#789A73','#82A17A','#8DA982','#94AD83','#9AAE86'][Math.floor(mapRandom()*5)];
   const light=['#C5D2AB','#CBD5AD','#D2D9B7','#BFCEA2'][Math.floor(mapRandom()*4)];
   if(kind==='roundtree'){
     g.appendChild(el('path',{d:'M-30 9 C-38 2-33-11-23-13 C-23-26-9-32 1-24 C10-34 26-27 26-15 C39-9 38 5 27 11 C23 23 7 25 0 17 C-10 27-27 22-27 13Z',fill:'#789376',opacity:'.35'}));
-    g.appendChild(el('path',{d:'M-24 3 C-31-5-23-17-13-17 C-9-28 6-27 10-17 C21-23 31-13 26-4 C36 4 27 16 17 13 C10 23-3 20-7 13 C-18 18-27 11-24 3Z',fill:leaf}));
-    g.appendChild(el('path',{d:'M-16-9 C-14-18-4-20 2-14 C8-22 20-17 19-9 C28-5 24 5 16 7 C10 16-2 13-5 7 C-13 11-21 2-16-4Z',fill:light,opacity:'.72'}));
+    g.appendChild(el('path',{d:'M-24 3 C-31-5-23-17-13-17 C-9-28 6-27 10-17 C21-23 31-13 26-4 C36 4 27 16 17 13 C10 23-3 20-7 13 C-18 18-27 11-24 3Z',fill:leaf,stroke:'#637F58','stroke-width':'1.8','stroke-opacity':'.62'}));
+    g.appendChild(el('path',{d:'M-16-9 C-14-18-4-20 2-14 C8-22 20-17 19-9 C28-5 24 5 16 7 C10 16-2 13-5 7 C-13 11-21 2-16-4Z',fill:light,opacity:'.72',stroke:'#CBD5AD','stroke-width':'1.1','stroke-opacity':'.58'}));
     [[-20,-7,2.5],[10,-14,2],[18,3,1.8],[-4,7,1.7]].forEach(([cx,cy,r],index)=>{
       g.appendChild(el('circle',{cx,cy,r,fill:index%2?'#B5C48E':'#5E8057',opacity:'.48'}));
     });
@@ -984,21 +985,71 @@ function makePlant(container,x,y,kind,scale,rotation){
 }
 function drawPlants(container){
   const canopyPath='M-58-8 C-57-25-40-34-26-28 C-18-43 2-43 12-31 C30-39 48-27 46-11 C62-2 56 17 41 21 C34 36 13 38 2 27 C-12 40-34 32-36 19 C-51 19-62 7-58-8Z';
-  for(let row=0;row<GRID_ROWS-1;row++) for(let col=0;col<GRID_COLS-1;col++){
-    const left=GRID_ORIGIN+col*GRID_SPACING,top=GRID_ORIGIN+row*GRID_SPACING;
-    for(let cluster=0;cluster<7;cluster++){
-      const x=left+42+mapRandom()*(GRID_SPACING-84);
-      const y=top+42+mapRandom()*(GRID_SPACING-84);
-      const point={x,y};
-      if(distToRiver(point)<42) continue;
-      const scale=.78+mapRandom()*.35;
-      const group=el('g',{class:'vegetation canopy-patch','data-x':x,'data-y':y,'data-clear-radius':'62',
-        transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(mapRandom()*50-25).toFixed(1)}) scale(${scale.toFixed(2)})`});
-      group.appendChild(el('path',{d:canopyPath,fill:'url(#canopyWash)'}));
-      group.appendChild(el('path',{d:'M-39-8 C-32-24-17-25-7-16 M-8-24 C2-36 18-29 21-19 M13 3 C26-9 40-2 39 9 M-26 10 C-17-1-3 0 4 10',
-        fill:'none',stroke:'#6F936B','stroke-width':'5','stroke-linecap':'round',opacity:'.12'}));
-      container.appendChild(group);
+  for(let attempt=0,planted=0;attempt<1800&&planted<720;attempt++){
+    const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,point={x,y};
+    if(distToRiver(point)<42) continue;
+    const scale=.78+mapRandom()*.35;
+    const group=el('g',{class:'vegetation canopy-patch','data-x':x,'data-y':y,'data-clear-radius':'62',
+      transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(mapRandom()*50-25).toFixed(1)}) scale(${scale.toFixed(2)})`});
+    group.appendChild(el('path',{d:canopyPath,fill:'url(#canopyWash)'}));
+    group.appendChild(el('path',{d:'M-39-8 C-32-24-17-25-7-16 M-8-24 C2-36 18-29 21-19 M13 3 C26-9 40-2 39 9 M-26 10 C-17-1-3 0 4 10',
+      fill:'none',stroke:'#6F936B','stroke-width':'5','stroke-linecap':'round',opacity:'.12'}));
+    container.appendChild(group);
+    planted++;
+  }
+  for(let attempt=0,planted=0;attempt<1200&&planted<240;attempt++){
+    const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,scale=.4+mapRandom()*.2;
+    makePlant(container,x,y,'roundtree',scale,mapRandom()*360);
+    planted++;
+  }
+  const grassColors=['#71936B','#829F72','#91A87A','#A1B184'];
+  for(const [a,b] of edges){
+    const samples=getEdgeGeometry(a,b).samples;
+    let distanceSincePatch=42;
+    for(let i=1;i<samples.length;i++){
+      const start=samples[i-1],end=samples[i],dx=end.x-start.x,dy=end.y-start.y;
+      const length=Math.hypot(dx,dy);
+      while(distanceSincePatch<length){
+        const t=distanceSincePatch/length;
+        const x=start.x+dx*t,y=start.y+dy*t;
+        const offset=13+mapRandom()*9;
+        for(const side of [-1,1]){
+          const px=x-(dy/length)*offset*side,py=y+(dx/length)*offset*side;
+          const height=11+mapRandom()*13,width=5+mapRandom()*5;
+          const group=el('g',{class:'vegetation roadside-grass','data-x':px,'data-y':py,'data-clear-radius':'36',
+            opacity:'.82',transform:`translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${(mapRandom()*36-18).toFixed(1)})`});
+          let blades='';
+          for(let blade=0;blade<5;blade++){
+            const baseX=(blade-2)*width*.48,lean=(mapRandom()-.5)*width*1.8;
+            const bladeHeight=height*(.68+mapRandom()*.48);
+            blades+=`M${(baseX-width*.23).toFixed(1)} 2 Q${(baseX+lean*.2-width*.2).toFixed(1)} ${(-bladeHeight*.58).toFixed(1)} ${(baseX+lean).toFixed(1)} ${(-bladeHeight).toFixed(1)} Q${(baseX+lean+width*.2).toFixed(1)} ${(-bladeHeight*.5).toFixed(1)} ${(baseX+width*.25).toFixed(1)} 2Z`;
+          }
+          group.appendChild(el('path',{d:blades,fill:grassColors[Math.floor(mapRandom()*grassColors.length)],opacity:'.82'}));
+          container.appendChild(group);
+        }
+        distanceSincePatch+=68;
+      }
+      distanceSincePatch-=length;
     }
+  }
+  const flowerColors=['#D99B91','#E7BD68','#F1E7C8','#C5CE91','#D7ABC1'];
+  for(let attempt=0,planted=0;attempt<12000&&planted<56;attempt++){
+    const x=mapRandom()*WORLD_W,y=mapRandom()*WORLD_H,point={x,y};
+    if(distToRiver(point)<38) continue;
+    const scale=.65+mapRandom()*1.25,color=flowerColors[Math.floor(mapRandom()*flowerColors.length)];
+    const group=el('g',{class:'vegetation flower-patch','data-x':x,'data-y':y,'data-clear-radius':'34',
+      opacity:'.78',transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(2)})`});
+    const stem=el('path',{d:'M0 2 Q-1 8 0 15 M0 10 Q-5 7-7 7 M0 12 Q5 9 7 9',fill:'none',stroke:'#78936D',
+      'stroke-width':'1.5','stroke-linecap':'round'});
+    group.appendChild(stem);
+    for(let petal=0;petal<5;petal++){
+      const angle=petal*Math.PI*2/5,cx=Math.cos(angle)*3.4,cy=Math.sin(angle)*3.4;
+      group.appendChild(el('ellipse',{cx:cx.toFixed(1),cy:cy.toFixed(1),rx:'3',ry:'2.1',fill:color,
+        transform:`rotate(${petal*72} ${cx.toFixed(1)} ${cy.toFixed(1)})`}));
+    }
+    group.appendChild(el('circle',{cx:0,cy:0,r:'1.8',fill:'#C89545'}));
+    container.appendChild(group);
+    planted++;
   }
 }
 function drawWalkedClearing(container){
@@ -1130,9 +1181,6 @@ function drawWorld(){
   drawRiver(worldLayer);
 
   drawWalkedClearing(worldLayer);
-  const vegetationLayer=el('g',{id:'vegetationLayer',mask:'url(#walkedVegetationMask)'});
-  drawPlants(vegetationLayer);
-  worldLayer.appendChild(vegetationLayer);
   const roads=el('g',{id:'roadNetwork'});
   worldLayer.appendChild(roads);
   edges.forEach(([a,b])=>{
@@ -1142,8 +1190,21 @@ function drawWorld(){
     const width=mainRoad?16:6.5;
     roads.appendChild(el('path',{d,fill:'none',stroke:'#D6C9B1','stroke-width':width+4,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.78'}));
     roads.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#F2E7CC':'#FBF6EA','stroke-width':width,'stroke-linecap':'round','stroke-linejoin':'round'}));
-    roads.appendChild(el('path',{d,fill:'none',stroke:'#FFFFFF','stroke-width':mainRoad?1.1:.75,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.55'}));
   });
+  const vegetationLayer=el('g',{id:'vegetationLayer',mask:'url(#walkedVegetationMask)'});
+  drawPlants(vegetationLayer);
+  worldLayer.appendChild(vegetationLayer);
+  const roadGuides=el('g',{id:'roadGuides'});
+  edges.forEach(([a,b])=>{
+    const from=nodes[a],to=nodes[b],geometry=getEdgeGeometry(a,b);
+    const d=`M ${from.x} ${from.y} Q ${geometry.control.x} ${geometry.control.y} ${to.x} ${to.y}`;
+    const mainRoad=geometry.roadClass==='main';
+    roadGuides.appendChild(el('path',{d,fill:'none',stroke:'#887A62','stroke-width':mainRoad?2.2:1.35,
+      'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.6'}));
+    roadGuides.appendChild(el('path',{d,fill:'none',stroke:'#FFF9EC','stroke-width':mainRoad?1.15:.7,
+      'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.88'}));
+  });
+  worldLayer.appendChild(roadGuides);
   drawMajorPlaceLabels(worldLayer);
   drawWalkedTrails(worldLayer);
 }
