@@ -2080,7 +2080,7 @@ function renderNavStep(){
     const saved=route?.savedByUser===true;
     body.innerHTML = `<div class="arrival-box"><div class="big">${iconMarkup('flag',38)}</div>
       <div class="t">目的地に到着しました</div>
-      <div class="arrival-note">この道を通りました。道沿いの植物がほどけて、歩いた道があらわれます。</div>
+      <div class="arrival-note">この道を通りました。<br>道沿いの植物がほどけて、歩いた道があらわれます。</div>
       ${route?arrivalMapMarkup(route.points):''}
       <div class="s">いつもの道から少し離れて、<br>どんな景色に出会えたでしょう。</div>
       ${route?`<div class="route-result-title">${iconInline('forkpath',15)} この道を選んだ理由</div>`:''}
@@ -2163,7 +2163,7 @@ const TUTORIAL_SLIDES = [
       <text x="222" y="115" text-anchor="middle" font-size="11" fill="#8C8272">目的地</text>
     </svg>`,
     title: '目的地と余裕時間を設定するだけ',
-    body: '到着までの「余裕時間」を設定すると、いつもの最短距離ではない寄り道ルートを提案。歩きながら、新しい景色や発見に出会えます。'
+    body: '到着までの「余裕時間」を設定すると、いつもの最短距離ではない寄り道ルートを提案。<br>歩きながら、新しい景色や発見に出会えます。'
   },
   {
     svg: `<svg viewBox="0 0 280 140" xmlns="http://www.w3.org/2000/svg">
