@@ -1183,26 +1183,44 @@ function drawWorld(){
   drawWalkedClearing(worldLayer);
   const roads=el('g',{id:'roadNetwork'});
   worldLayer.appendChild(roads);
+  // 縁取りを先に全部描き、その上に路面を重ねることで、道の継ぎ目に丸い端が出ないようにする
+  const roadCasings=el('g',{opacity:'.78'});
+  const roadSurfaces=el('g');
+  roads.appendChild(roadCasings);
+  roads.appendChild(roadSurfaces);
   edges.forEach(([a,b])=>{
     const from=nodes[a],to=nodes[b],geometry=getEdgeGeometry(a,b);
     const d=`M ${from.x} ${from.y} Q ${geometry.control.x} ${geometry.control.y} ${to.x} ${to.y}`;
     const mainRoad=geometry.roadClass==='main';
     const width=mainRoad?16:6.5;
-    roads.appendChild(el('path',{d,fill:'none',stroke:'#D6C9B1','stroke-width':width+4,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.78'}));
-    roads.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#F2E7CC':'#FBF6EA','stroke-width':width,'stroke-linecap':'round','stroke-linejoin':'round'}));
+    roadCasings.appendChild(el('path',{d,fill:'none',stroke:'#D6C9B1','stroke-width':width+4,'stroke-linecap':'round','stroke-linejoin':'round'}));
+  });
+  edges.forEach(([a,b])=>{
+    const from=nodes[a],to=nodes[b],geometry=getEdgeGeometry(a,b);
+    const d=`M ${from.x} ${from.y} Q ${geometry.control.x} ${geometry.control.y} ${to.x} ${to.y}`;
+    const mainRoad=geometry.roadClass==='main';
+    const width=mainRoad?16:6.5;
+    roadSurfaces.appendChild(el('path',{d,fill:'none',stroke:mainRoad?'#F2E7CC':'#FBF6EA','stroke-width':width,'stroke-linecap':'round','stroke-linejoin':'round'}));
   });
   const vegetationLayer=el('g',{id:'vegetationLayer',mask:'url(#walkedVegetationMask)'});
   drawPlants(vegetationLayer);
   worldLayer.appendChild(vegetationLayer);
   const roadGuides=el('g',{id:'roadGuides'});
+  const guideDark=el('g',{opacity:'.6'});
+  const guideLight=el('g',{opacity:'.88'});
+  roadGuides.appendChild(guideDark);
+  roadGuides.appendChild(guideLight);
   edges.forEach(([a,b])=>{
     const from=nodes[a],to=nodes[b],geometry=getEdgeGeometry(a,b);
     const d=`M ${from.x} ${from.y} Q ${geometry.control.x} ${geometry.control.y} ${to.x} ${to.y}`;
     const mainRoad=geometry.roadClass==='main';
-    roadGuides.appendChild(el('path',{d,fill:'none',stroke:'#887A62','stroke-width':mainRoad?2.2:1.35,
-      'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.6'}));
-    roadGuides.appendChild(el('path',{d,fill:'none',stroke:'#FFF9EC','stroke-width':mainRoad?1.15:.7,
-      'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.88'}));
+    guideDark.appendChild(el('path',{d,fill:'none',stroke:'#887A62','stroke-width':mainRoad?2.2:1.35,'stroke-linecap':'round','stroke-linejoin':'round'}));
+  });
+  edges.forEach(([a,b])=>{
+    const from=nodes[a],to=nodes[b],geometry=getEdgeGeometry(a,b);
+    const d=`M ${from.x} ${from.y} Q ${geometry.control.x} ${geometry.control.y} ${to.x} ${to.y}`;
+    const mainRoad=geometry.roadClass==='main';
+    guideLight.appendChild(el('path',{d,fill:'none',stroke:'#FFF9EC','stroke-width':mainRoad?1.15:.7,'stroke-linecap':'round','stroke-linejoin':'round'}));
   });
   worldLayer.appendChild(roadGuides);
   drawMajorPlaceLabels(worldLayer);
@@ -2111,7 +2129,7 @@ const TUTORIAL_SLIDES = [
       <g transform="translate(138 79) scale(.7)" fill="none" stroke="#43392D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS.coffee}</g>
       <g transform="translate(208 92) scale(.7)" fill="none" stroke="#43392D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS.palette}</g>
     </svg>`,
-    title: '「最短・最速」ではなく、「余裕のある時間」を楽しむ。',
+    title: '「最短・最速」ではなく、<br>「余裕のある時間」を楽しむ。',
     body: 'いつもの通勤・通学を、ただの移動で終わらせない。道草は、目的地までの「余裕のある時間」を楽しむアプリです。'
   },
   {
