@@ -1932,7 +1932,7 @@ function renderGallery(){
   document.getElementById('gallerySub').textContent='お気に入りの場所と、歩いた道を見返せます。';
   if(recordedSpots.length===0 && savedRoutes.length===0){
     grid.innerHTML=`<div class="empty-state"><span class="ico" id="emptyRouteIcon"></span>まだ記録がありません。<br>歩いて見つけた場所や道を残してみましょう。</div>`;
-    document.getElementById('emptyRouteIcon').innerHTML=iconMarkup('forkpath',30);
+    document.getElementById('emptyRouteIcon').innerHTML=iconMarkup('flower',30);
     return;
   }
   [...savedRoutes].reverse().forEach(route=>{
@@ -2115,7 +2115,7 @@ function renderNavStep(){
   }
   const recorded = cur.recordedThisWalk;
   const earbudHtml = `<button class="earbud-btn ${recorded?'done':''}" id="earbudBtn" ${recorded?'disabled':''}>
-      <span class="pulse-ico">${iconMarkup('forkpath',17)}</span> ${recorded? '記録済み' : 'この場所をお気に入りに記録'}</button>`;
+      <span class="pulse-ico">${iconMarkup('flower',17)}</span> ${recorded? '記録済み' : 'この場所をお気に入りに記録'}</button>`;
 
   body.innerHTML = `<div class="compass"><span class="arrow" style="transform:rotate(${brg+90}deg)">${iconMarkup('arrowright',37)}</span></div>
     <div class="nav-instruction">${instruction}</div><div class="nav-sub">${sub}</div>${nearHtml}${earbudHtml}`;
@@ -2126,7 +2126,7 @@ function renderNavStep(){
       recordedSpots.push({ id: Date.now()+'_'+Math.random().toString(36).slice(2,6), spot: spotForRecord, recordedAt: new Date().toISOString(), x: cur.x, y: cur.y });
       if(!saveRecorded()){ recordedSpots.pop(); cur.recordedThisWalk=false; return; }
       updateStarBadge();
-      showToast(`${iconInline('forkpath',15)} 場所を記録しました`);
+      showToast(`${iconInline('flower',15)} 場所を記録しました`);
       renderNavStep();
     });
   }
